@@ -12,7 +12,7 @@
 | 本地部署 | docker-compose 仅拉起基础设施（postgres+mongo），api 与 web 在宿主机运行；不追求高可用与云端能力 | ADR-0003（经 ADR-0017 修订） |
 | Web 应用（web） | Next.js 前端，面向用户的界面 | ADR-0004 |
 | API 服务（api） | NestJS 后端，承载全部业务逻辑与检索管线 | ADR-0004 |
-| Monorepo | web 与 api 共存于单一仓库；pnpm workspace 管理 apps/* 与 packages/*，根 `pnpm install` 单摊装齐三包（ADR-0021） | ADR-0004 |
+| Monorepo | web 与 api 共存于单一仓库；pnpm workspace 管理 apps/* 与 packages/*，根 `pnpm install` 单摊装齐三包（ADR-0014） | ADR-0004 |
 | pgvector | PostgreSQL 的向量扩展，承载切片的 embedding 与余弦相似度检索 | ADR-0005 |
 | 双库边界 | PG 管元数据/向量、MongoDB 管正文的分工约定；写入顺序 PG→Mongo，失败标记 `failed`，不做跨库事务 | ADR-0005 |
 | 纯向量检索 topK | 查询向量化后按余弦相似度取前 K 个切片（默认 K=5），无全文索引与重排 | ADR-0006 |
@@ -22,5 +22,5 @@
 | SSE 流式 | 问答端点以 Server-Sent Events 逐 token 返回；事件序列：引用→正文→结束/错误 | ADR-0010 |
 | 文档级引用 | 引用仅标注来源文档（命中切片按文档去重），不暴露切片原文 | ADR-0011 |
 | 递归字符切分 | RecursiveCharacterTextSplitter 按 MD 结构符号递归切分，目标 ~500 字符、重叠 ~50 | ADR-0012 |
-| shared 契约库 | packages/shared（`@kh/shared` 包）：前后端共享的 DTO 类型/枚举/常量，零框架依赖，类型即契约；api 与 web 均经 `workspace:*` 依赖消费（web 走 transpilePackages） | ADR-0015（载体经 ADR-0021 恢复） |
+| shared 契约库 | packages/shared（`@kh/shared` 包）：前后端共享的 DTO 类型/枚举/常量，零框架依赖，类型即契约；api 与 web 均经 `workspace:*` 依赖消费（web 走 transpilePackages） | ADR-0015 |
 | 验收剧本 | MVP 完成定义：compose 起 infra → pnpm dev 起应用 → 上传/列表/流式问答/多轮/删除后不再引用，全走通 | design.md |

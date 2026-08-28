@@ -82,7 +82,7 @@ LIMIT $2;
 
 ```bash
 # 先经 P4 上传至少 1 篇文档
-curl -N -X POST localhost:3000/chat \
+curl -N -X POST localhost:3001/chat \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"<文档内可命中的问题>"}]}'
 ```

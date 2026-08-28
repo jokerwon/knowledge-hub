@@ -27,7 +27,7 @@ apps/api/src/database/   # TypeORM/Mongoose 接线、entities、migrations
 
 ### 2. migration 工具链（P3-2，0.5h）
 
-- 根 scripts：`migration:generate` / `migration:run` / `migration:revert`（TypeORM CLI + ts-node）。
+- `apps/api` scripts：`migration:generate` / `migration:run` / `migration:revert`（TypeORM CLI + ts-node，根侧 `pnpm --filter api` 代理）。
 - 验证：空迁移可生成、可执行、可回退。
 
 ### 3. 迁移：documents 表（P3-3，1h）

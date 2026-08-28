@@ -24,7 +24,7 @@ apps/api/src/ingest/      # 摄取管线：切分 + 向量化（LangChain 边界
 
 - multer 处理 multipart；扩展名 + MIME 双校验，仅 `.md` / `.txt`；大小 `≤ UPLOAD_MAX_BYTES`（默认 2MB）。
 - 违规一律 400，响应体带明确原因。
-- 验证：`curl -F "file=@sample.md" localhost:3000/documents` 通过；>2MB 文件与 `.pdf` 均 400。
+- 验证：`curl -F "file=@sample.md" localhost:3001/documents` 通过；>2MB 文件与 `.pdf` 均 400。
 
 ### 2. POST /documents 骨架（P4-2，0.5h）
 
