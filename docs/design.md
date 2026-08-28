@@ -39,8 +39,8 @@ knowledge-hub/
 ├── pnpm-workspace.yaml   # packages: apps/* + packages/*（pnpm 11 的 allowBuilds 也在此）
 ├── package.json          # 仓库根编排：dev/build/lint 经 --filter 下发，dev:all 并发两端
 ├── apps/
-│   ├── web/          # Next.js：单页双栏（ADR-0018），workspace 成员
-│   └── api/          # NestJS 标准应用：自带 nest-cli.json（非 monorepo），端口 3001
+│   ├── web/          # Next.js：单页双栏（ADR-0018），workspace 成员，端口 8000
+│   └── api/          # NestJS 标准应用：自带 nest-cli.json（非 monorepo），端口 8001
 ├── packages/
 │   └── shared/       # 契约包 @kh/shared：DTO 类型/枚举/常量，零框架依赖（ADR-0015）
 ├── deploy/

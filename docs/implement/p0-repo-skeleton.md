@@ -28,7 +28,7 @@
 ### 2. 生成 api（P0-2，0.5h）
 
 - `apps/api` 以 `nest new` 生成（pnpm 包管理器）：自带 package.json 与 nest-cli.json（标准模式，非 monorepo）。
-- api 端口默认 3001（`PORT ?? 3001`），避免与 web 的 3000 冲突。
+- api 端口默认 8001（`PORT ?? 8001`），web 固定 8000（dev/start 脚本 `-p 8000`），避开其他本地项目的 3000/3001。
 - 验证：`pnpm --filter api dev` 起 api，hello 端点 curl 可通。
 
 ### 3. 生成 shared 包（P0-3，0.5h）
@@ -51,7 +51,7 @@
 
 ### 6. 根编排（P0-6，0.5h）
 
-- 根 scripts：`dev`（api）、`dev:web`（web）、`dev:all`（concurrently 并发两端，一端退出全终止）、`build`（shared → api → web 按序）、`lint`（`pnpm -r lint`）。
+- 根 scripts：`dev`（api）、`dev:web`（web）、`dev:all`（`pnpm -r --parallel dev` 并发两端）、`build`（shared → api → web 按序）、`lint`（`pnpm -r lint`）。
 - 验证：根 `pnpm install` 一次装齐三包；`pnpm dev:all` 两端同起。
 
 ### 7. 收尾（P0-7，0.5h）
@@ -62,7 +62,7 @@
 ## 阶段验证
 
 1. 根 `pnpm install` 一次成功（无 apps/web 二次 install）。
-2. 根 `pnpm dev:all` → api(3001) 与 web(3000) 同时可访问。
+2. 根 `pnpm dev:all` → api(8001) 与 web(8000) 同时可访问。
 3. `@kh/shared` 两端各引一次均编译通过。
 
 ## 完成标准
@@ -87,13 +87,13 @@
 ### 新布局（ADR-0014）——已执行（2026-08-28）
 
 - P0-1：根 package.json（packageManager pnpm@11.24.0、engines node>=22）、pnpm-workspace.yaml、.gitignore 建立；根 install 一次通过。`allowBuilds` 按 map 格式写入（坑位备忘已更新）。
-- P0-2：nest CLI 11 标准模式生成 apps/api；端口改 `PORT ?? 3001`。偏差一：`--skip-git` 会连带不生成 .gitignore（根 .gitignore 已覆盖 node_modules/dist/.env*，另补了 coverage/）。偏差二：nest 11 生成物无 `dev` 脚本（仅 start:dev），按计划验证需要补了 `dev: nest start --watch` 别名。
+- P0-2：nest CLI 11 标准模式生成 apps/api。端口最终定为 api 8001（`PORT ?? 8001`）、web 8000（dev/start 脚本 `-p 8000`）——初版 3000/3001 与本地另一项目 shiguang 撞端口，后按决策改为 8000/8001。偏差一：`--skip-git` 会连带不生成 .gitignore（根 .gitignore 已覆盖 node_modules/dist/.env*，另补了 coverage/）。偏差二：nest 11 生成物无 `dev` 脚本（仅 start:dev），按计划验证需要补了 `dev: nest start --watch` 别名。
 - P0-2（TS 6.0.3 治本落地）：按坑位备忘把 api 的 TypeScript 升到 6.0.3，实际报错三处并已修复：TS5011 → tsconfig.build.json 显式 `rootDir: "./src"`；TS5101（baseUrl 弃用）→ tsconfig.json 加 `ignoreDeprecations: "6.0"`（该键在 6.0.3 为合法值）；TS2591 → TS 6 起 `types` 默认空数组，显式 `types: ["node", "jest", "supertest"]`。此外基础 tsconfig.json 也需显式 `rootDir: "."`（ts-jest 走基础配置做内存 emit，同样触发 TS5011；取值必须覆盖 src+test 两目录，构建配置以 `./src` 覆盖不受影响）。
 - P0-2 新坑：TS 6 incremental + nest deleteOutDir 组合导致 emit 被跳过（dev 启动即 `MODULE_NOT_FOUND dist/main`），已移除 tsconfig.json 的 `incremental`（详见坑位备忘）。
 - P0-3：@kh/shared 手工建包（nodenext 模块、零框架依赖、仅 devDeps typescript、tsc 产出 dist/）；build 验证通过。
 - P0-4：create-next-app 16.3.3 生成 apps/web（Next 16.3.3 / React 19.2.8 / TS 5 / ESLint flat / 纯 CSS）；AGENTS.md/CLAUDE.md 保留。偏差：create-next-app 在 apps/web 内生成 `pnpm-workspace.yaml`（allowBuilds 豁免声明），与根 workspace 冲突，已删除，放行统一由根文件管理。
 - P0-5：api、web 各加 `@kh/shared: workspace:*`；shared 新增 `APP_NAME` 常量，api hello 返回与 web 首页渲染均已验证（spec 断言同步更新）。偏差：Next 16 官方文档确认 Turbopack 自动转译 workspace 包，`transpilePackages` 仅 webpack/Pages Router 需要——未加，以两端实际编译+渲染为准。注意：React SSR 会在 JSX 文本插值处插入 `<!-- -->` 注释节点，grep 页面 HTML 验证时按此匹配。
-- P0-6：根 scripts dev/dev:web/dev:all/build/lint 完成；`pnpm build` 按序 shared→api→web 通过；dev:all 双端同起，kill api 子进程后 2s 内 web 级联退出（concurrently -k 生效）。lint：`pnpm -r lint` 覆盖 3/4 包（shared 无 lint 脚本自动跳过）；api 模板代码有 1 个 no-floating-promises warning（generator 自带，未处理）。
+- P0-6：根 scripts dev/dev:web/dev:all/build/lint 完成；`pnpm build` 按序 shared→api→web 通过。dev:all 初版为 concurrently -k（级联终止实测生效），后按决策改为 `pnpm -r --parallel dev`：放弃"一端退出全终止"语义（pnpm 对已运行兄弟进程无清理契约），换取零额外依赖与更短编排；concurrently 已移除。lint：`pnpm -r lint` 覆盖 3/4 包（shared 无 lint 脚本自动跳过）；api 模板代码有 1 个 no-floating-promises warning（generator 自带，未处理）。
 - P0-7：根 .env.example 按 design.md §6 变量清单建立；api 按其子集 cp 出 .env（`git check-ignore` 确认 .env 被忽略、.env.example 经否定规则可跟踪）；根 scripts 仅用 `--filter` 无跨包硬路径。
 
 ### 历史记录（nest CLI monorepo 布局，已作废）
