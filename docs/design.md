@@ -1,6 +1,6 @@
 # knowledge-hub MVP 设计总览
 
-> 本文档是拷问会话的最终沉淀：汇总 20 项 ADR 决策，给出领域模型、数据模型、API 契约与验收剧本。
+> 本文档是拷问会话的最终沉淀：汇总 21 项 ADR 决策，给出领域模型、数据模型、API 契约与验收剧本。
 > 单项决策的上下文与取舍见 `docs/adr/`，本文档与 ADR 冲突时以 ADR 为准。
 
 ## 1. 定位
@@ -32,24 +32,24 @@
 - LangChain 仅限 api 的 ingest/retrieval 边界，ESLint 强制（ADR-0007）。
 - compose 仅含 postgres 与 mongo 两个服务（ADR-0017）。
 
-## 3. 仓库布局（ADR-0020，取代 ADR-0014）
+## 3. 仓库布局（ADR-0021，取代 ADR-0020）
 
 ```
 knowledge-hub/
+├── pnpm-workspace.yaml   # packages: apps/* + packages/*（pnpm 11 的 allowBuilds 也在此）
+├── package.json          # 仓库根编排：dev/build/lint 经 --filter 下发，dev:all 并发两端
 ├── apps/
-│   ├── web/          # Next.js 游离应用：单页双栏（ADR-0018），独立 package.json，nest CLI 不过问
-│   └── api/          # NestJS 应用（nest-cli.json 注册的 application）
-├── libs/
-│   └── shared/       # 契约库：nest g library 生成，DTO 类型/枚举/常量，零框架依赖（ADR-0015）
+│   ├── web/          # Next.js：单页双栏（ADR-0018），workspace 成员
+│   └── api/          # NestJS 标准应用：自带 nest-cli.json（非 monorepo），端口 3001
+├── packages/
+│   └── shared/       # 契约包 @kh/shared：DTO 类型/枚举/常量，零框架依赖（ADR-0015）
 ├── deploy/
 │   └── docker-compose.yml   # postgres + mongo（ADR-0017）
-├── nest-cli.json     # monorepo: true，projects: api/libs-shared，defaultLibraryPrefix "@kh"
-├── package.json      # 仓库级单包：api + libs 的依赖与脚本（web 自理）
 └── docs/             # 本文档 + adr/ + glossary.md
 ```
 
-- monorepo 由 nest CLI 管理；新增 Nest 应用/库一律 `nest generate`（ADR-0020）。
-- 契约消费：api 经 `@kh/shared` 别名；web 经自身 tsconfig paths 引用 libs/shared 源码。
+- monorepo 由 pnpm workspace 管理，根 `pnpm install` 单摊装齐三包（ADR-0021）。
+- 契约消费：api 与 web 均以 `@kh/shared: workspace:*` 依赖，web 经 next.config `transpilePackages` 消费。
 
 ## 4. 领域模型
 
@@ -83,7 +83,7 @@ CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops);
 document_contents: { document_id: string (唯一索引), content: string }
 ```
 
-## 5. API 契约（类型定义以 libs/shared 为准）
+## 5. API 契约（类型定义以 @kh/shared 为准）
 
 | 端点 | 说明 |
 | --- | --- |
@@ -122,7 +122,7 @@ UPLOAD_MAX_BYTES=2097152 / INGEST_TIMEOUT_MS=60000
 
 ## 7. 验收剧本（MVP 完成定义）
 
-1. `docker compose up` 拉起 postgres 与 mongo；根目录 `pnpm dev` 启动 api、`apps/web` 内 `pnpm dev` 启动 web（ADR-0020：脚本编排分两摊），全链路联通。
+1. `docker compose up` 拉起 postgres 与 mongo；根目录 `pnpm install && pnpm dev:all` 同起两端（ADR-0021：单一 workspace install），全链路联通。
 2. 上传 3 篇 MD（其中 1 篇 >2MB 被明确拒绝）。
 3. 文档列表正确显示状态（ready / failed）。
 4. 提问 → SSE 流式答案 + 文档级引用。
@@ -151,10 +151,11 @@ UPLOAD_MAX_BYTES=2097152 / INGEST_TIMEOUT_MS=60000
 | 0011 | 文档级引用 |
 | 0012 | 递归字符切分 |
 | 0013 | UUID 主键（附领域模型确认） |
-| 0014 | pnpm workspace 布局（已被 0020 取代） |
-| 0015 | 契约类型包（载体经 0020 修订为 libs/shared） |
+| 0014 | pnpm workspace 布局（曾被 0020 取代，经 0021 恢复） |
+| 0015 | 契约类型包（载体经 0021 恢复为 packages/shared） |
 | 0016 | TypeORM + Mongoose |
 | 0017 | compose 仅含基础设施（修订 0003） |
 | 0018 | web 单页双栏 |
 | 0019 | 不做质量系统评估 |
-| 0020 | nest CLI 管理 monorepo（取代 0014，修订 0015 载体） |
+| 0020 | nest CLI 管理 monorepo（已被 0021 取代） |
+| 0021 | pnpm workspace 管理 monorepo（取代 0020，恢复 0014 布局与 0015 载体） |

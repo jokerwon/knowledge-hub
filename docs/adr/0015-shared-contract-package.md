@@ -1,6 +1,6 @@
 # ADR-0015：前后端契约——packages/shared 类型包
 
-- 状态：已接受（契约载体由 ADR-0020 修订为 libs/shared）
+- 状态：已接受（载体曾由 ADR-0020 修订为 libs/shared，ADR-0021 恢复为 packages/shared）
 - 日期：2026-08-28
 
 ## 背景

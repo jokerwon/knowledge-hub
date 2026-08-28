@@ -9,7 +9,7 @@
 
 ## 目标
 
-用 ESLint 把架构边界变成机器可执行的约束；两摊 lint + build 全绿；验收剧本逐项通过；README 让新人可冷启动。
+用 ESLint 把架构边界变成机器可执行的约束；全仓 lint + build 全绿；验收剧本逐项通过；README 让新人可冷启动。
 
 ## 步骤
 
@@ -30,18 +30,18 @@
 
 ### 2. ESLint：前后端隔离（P7-2，1h）
 
-- web 禁止导入 api 服务端代码（`libs/shared` 类型契约除外）。
+- web 禁止导入 api 服务端代码（`packages/shared`（@kh/shared）类型契约除外）。
 - 验证：故意越界 import 被拦截。
 
 ### 3. 全绿（P7-3，0.5h）
 
-- 根（api + libs）与 `apps/web` 分别 `lint` + `build` 通过。
+- 根 `pnpm -r lint` 与 `pnpm -r build` 全绿（api、web、shared 三包）。
 
 ### 4. 验收执行（P7-4，3h）
 
 逐项执行并记录结果（全过才算 MVP 完成，ADR-0019 不另设评估）：
 
-- [ ] 4.1 `docker compose up` 起 postgres + mongo；根 `pnpm dev` 起 api、`apps/web` 内 `pnpm dev` 起 web，全链路联通
+- [ ] 4.1 `docker compose up` 起 postgres + mongo；根 `pnpm install && pnpm dev:all` 同起 api 与 web，全链路联通
 - [ ] 4.2 上传 3 篇 MD，其中 1 篇 >2MB 被明确拒绝
 - [ ] 4.3 文档列表正确显示状态（ready / failed）
 - [ ] 4.4 提问 → SSE 流式答案 + 文档级引用
@@ -50,13 +50,13 @@
 
 ### 5. README（P7-5，1h）
 
-- 快速开始：`docker compose up -d` → 根 `pnpm install` → `apps/web` `pnpm install` → 两处 `pnpm dev`。
+- 快速开始：`docker compose up -d` → 根 `pnpm install` → `pnpm dev:all`。
 - 环境变量说明（照 `.env.example`）、已知限制（单用户、无会话持久化、60s 摄取超时等）。
 - 按 README 从零冷启动一遍验证。
 
 ## 完成标准
 
 - [ ] 两条边界规则生效且被故意违规验证过
-- [ ] 两摊 lint + build 全绿
+- [ ] 全仓 lint + build 全绿
 - [ ] 验收 6 项全部通过并有记录
 - [ ] README 冷启动成功

@@ -1,15 +1,15 @@
-# P2：契约库 libs/shared（可执行计划）
+# P2：契约包 packages/shared（可执行计划）
 
 | 项 | 内容 |
 | --- | --- |
 | 预估 | 3h |
-| 前置 | P0 完成（尤其 P0-6 web 引源码已打通） |
+| 前置 | P0 完成（尤其 P0-5 契约接线已打通） |
 | 被依赖 | P4、P5、P6 的接口实现与联调 |
-| 相关决策 | ADR-0015（实质约束）、ADR-0020（载体） |
+| 相关决策 | ADR-0015（实质约束）、ADR-0021（载体） |
 
 ## 目标
 
-在 `libs/shared` 定义前后端共享的全部契约：文档/问答 DTO、SSE 事件、常量。**只含类型与纯常量，零运行时逻辑、零框架依赖**；类型即契约，任一端契约漂移编译即报错。
+在 `packages/shared`（`@kh/shared`）定义前后端共享的全部契约：文档/问答 DTO、SSE 事件、常量。**只含类型与纯常量，零运行时逻辑、零框架依赖**；类型即契约，任一端契约漂移编译即报错。
 
 ## 步骤
 
@@ -58,8 +58,8 @@ export type SseEvent =
 
 ### 5. 零依赖体检（P2-5，0.5h）
 
-- `libs/shared` 的 package 依赖为空；不出现任何 nest / next / langchain import。
-- 编译两端各一次：api 经 `@kh/shared` 别名、web 经 paths，均通过。
+- `packages/shared` 的 package 依赖为空；不出现任何 nest / next / langchain import。
+- 编译两端各一次：api 与 web 均经 `@kh/shared` workspace 依赖（web 走 transpilePackages），均通过。
 
 ## 完成标准
 
@@ -69,4 +69,4 @@ export type SseEvent =
 
 ## 约定
 
-- 此后任何接口变更先改 `libs/shared`，由编译错误驱动两端同步——这是强制同步机制本身，不另设流程。
+- 此后任何接口变更先改 `packages/shared`，由编译错误驱动两端同步——这是强制同步机制本身，不另设流程。
