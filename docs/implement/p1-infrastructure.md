@@ -49,3 +49,23 @@
 ## 备注
 
 - `CREATE EXTENSION vector` 的正式启用放在 P3 首个 migration 内，compose 不写 init 脚本，保证"全新卷 + migration"即可用。
+
+## 实施记录
+
+### 已执行（2026-08-28）
+
+- P1-1：新建 `deploy/docker-compose.yml`，postgres 服务镜像 `pgvector/pgvector:pg16`，healthcheck 用 `pg_isready`。
+- P1-2：同文件 mongo 服务镜像 `mongo:7`，healthcheck 用 `mongosh --eval db.adminCommand('ping')`。
+- P1-3：根 `.env.example` 补齐 `DATABASE_URL` / `MONGO_URL` 连接串模板（与 compose 凭据一致）。
+- P1-4 未执行：本机 Docker daemon 未运行，按用户指示不在本地执行 Docker；两库 healthy、`psql`/`mongosh` 连通、`CREATE EXTENSION vector` 验证延后到有 Docker 环境时进行（P3 首个 migration 前必须补验）。compose 文件仅做静态编写，未经实际拉起验证。
+
+### 用户手动改写 compose 后的偏差（2026-08-28）
+
+用户对 `deploy/docker-compose.yml` 做了整体改写，最终态与计划的差异记录如下（以仓库当前文件为准）：
+
+- 数据持久化由命名卷改为 bind mount：`${DOCKER_VOLUME_DIRECTORY:-.}/volumes/{postgres,mongo}`（可整体外迁数据目录）；`deploy/volumes/` 已加入根 .gitignore。
+- mongo 启用认证（`MONGO_INITDB_ROOT_USERNAME/PASSWORD`），服务名改为 `mongodb`，镜像钉为 `mongo:7-jammy`，healthcheck 带 `-u/-p --authenticationDatabase admin`；`MONGO_URL` 模板相应改为 `mongodb://mongo_user:mongo_pass123@localhost:27017/knowledge_hub?authSource=admin`。
+- 新增第三个服务 mongo-express（Web GUI，8081 端口，独立网页登录账号，depends_on 等待 mongodb healthy）。计划"仅拉起两个基础设施服务"的口径放宽为"两个数据服务 + 一个可选管理工具"；验收时如需严格两服务可单独 `up -d postgres mongodb`。
+- 两库均挂载 `./init-scripts/{postgresql,mongodb}` 初始化脚本目录。备注中"compose 不写 init 脚本"的约束不变——目录当前为空、仅占位，`CREATE EXTENSION vector` 仍放 P3 首个 migration，不依赖 init 脚本。
+- 各服务加 `container_name`（knowledge_hub_*）与 `restart: always`；显式声明 default 网络名 `common-network`。
+- 修正：手动版 pg healthcheck 原写成 `-d hello_pg`（与 `POSTGRES_DB=knowledge_hub` 不符），已改回 `knowledge_hub`。
