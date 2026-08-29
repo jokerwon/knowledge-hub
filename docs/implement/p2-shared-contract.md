@@ -2,6 +2,7 @@
 
 | 项 | 内容 |
 | --- | --- |
+| 状态 | ⬜ 未开始（前置 P0-5 契约接线已打通，shared 现仅占位常量 `APP_NAME`） |
 | 预估 | 3h |
 | 前置 | P0 完成（尤其 P0-5 契约接线已打通） |
 | 被依赖 | P4、P5、P6 的接口实现与联调 |
@@ -59,7 +60,7 @@ export type SseEvent =
 ### 5. 零依赖体检（P2-5，0.5h）
 
 - `packages/shared` 的 package 依赖为空；不出现任何 nest / next / langchain import。
-- 编译两端各一次：api 与 web 均经 `@kh/shared` workspace 依赖（web 走 transpilePackages），均通过。
+- 编译两端各一次：api 与 web 均经 `@kh/shared` workspace 依赖，均通过（web 无需 `transpilePackages`：Next 16 Turbopack 对 App Router 自动转译 workspace 包，P0-5 已实测）。
 
 ## 完成标准
 

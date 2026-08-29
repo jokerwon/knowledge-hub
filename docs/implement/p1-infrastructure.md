@@ -2,6 +2,7 @@
 
 | 项 | 内容 |
 | --- | --- |
+| 状态 | 🟡 编写完成，运行时验证（P1-4）延后——本机无 Docker 环境 |
 | 预估 | 3h |
 | 前置 | P0 完成 |
 | 被依赖 | P3（数据库连接）、P7-4 验收第 1 项 |
@@ -42,9 +43,11 @@
 
 ## 完成标准
 
-- [ ] `docker compose up -d` 后两库均 healthy
-- [ ] 两个连接串可直连
-- [ ] 无任何应用服务的 Dockerfile / compose 条目
+- [ ] `docker compose up -d` 后两库均 healthy（待 P1-4 补验）
+- [ ] 两个连接串可直连（待 P1-4 补验）
+- [x] 无任何应用服务的 Dockerfile / compose 条目（静态检查已确认：全仓无 Dockerfile，compose 仅数据服务）
+
+> P1-4 为 P3 开工前的硬性前置：拿到可用 Docker 环境后先补验本节，再开始数据层。
 
 ## 备注
 
