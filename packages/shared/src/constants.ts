@@ -1,0 +1,10 @@
+// 共享常量：默认值与 .env 默认保持一致（design.md §6）。
+// 业务代码通过常量引用，避免两侧硬编码漂移。
+
+export const APP_NAME = 'knowledge-hub';
+
+export const DEFAULT_RETRIEVAL_TOP_K = 5;
+export const DEFAULT_MAX_UPLOAD_BYTES = 2_097_152; // 2 MiB
+export const DEFAULT_CHUNK_SIZE = 500;
+export const DEFAULT_CHUNK_OVERLAP = 50;
+export const DEFAULT_INGEST_TIMEOUT_MS = 60_000;
