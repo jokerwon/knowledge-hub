@@ -11,5 +11,8 @@
     "dev:all": "pnpm -r --parallel dev",
     "build": "pnpm --filter @kh/shared build && pnpm --filter api build && pnpm --filter web build",
     "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0"
   }
 }

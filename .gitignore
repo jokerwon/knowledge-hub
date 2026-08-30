@@ -5,3 +5,8 @@ coverage/
 deploy/volumes/
 .env*
 !.env.example
+
+# TypeORM CLI（ts-node 在 apps/api 根会产生编译产物，勿入库）
+apps/api/ormconfig.js
+apps/api/ormconfig.d.ts
+apps/api/ormconfig.js.map
