@@ -42,6 +42,9 @@ export class ChunkEntity {
   @ManyToOne(() => DocumentEntity, (doc) => doc.chunks, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'document_id', foreignKeyConstraintName: 'chunks_document_id_fkey' })
+  @JoinColumn({
+    name: 'document_id',
+    foreignKeyConstraintName: 'chunks_document_id_fkey',
+  })
   document!: DocumentEntity;
 }
