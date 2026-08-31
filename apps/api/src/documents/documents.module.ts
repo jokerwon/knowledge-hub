@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChunkEntity } from './entities/chunk.entity';
 import { DocumentEntity } from './entities/document.entity';
 import {
   DocumentContent,
@@ -16,7 +15,7 @@ import { UploadSizeFilter } from './upload-size.filter';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DocumentEntity, ChunkEntity]),
+    TypeOrmModule.forFeature([DocumentEntity]),
     MongooseModule.forFeature([
       { name: DocumentContent.name, schema: DocumentContentSchema },
     ]),

@@ -14,8 +14,6 @@ import { randomUUID } from 'node:crypto';
 import type { Model } from 'mongoose';
 import type { Repository } from 'typeorm';
 import { CURRENT_USER_ID, cfgInt } from '../config';
-import { EMBEDDING_DIM } from '../database/vector-transformer';
-import { ChunkEntity } from './entities/chunk.entity';
 import { DocumentEntity } from './entities/document.entity';
 import { DocumentContent } from './schemas/document-content.schema';
 import type { DocumentContentDoc } from './schemas/document-content.schema';
@@ -36,8 +34,6 @@ export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly documentsRepo: Repository<DocumentEntity>,
-    @InjectRepository(ChunkEntity)
-    private readonly chunksRepo: Repository<ChunkEntity>,
     @InjectModel(DocumentContent.name)
     private readonly contents: Model<DocumentContentDoc>,
     cfg: ConfigService,
@@ -94,23 +90,13 @@ export class DocumentsService {
     }
   }
 
-  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo → chunks。
-  // ponytail: 暂跳过切分与向量化，整篇正文作为一个 chunk、embedding 零向量占位；
-  // 恢复管线（切分/embedding 在 git 历史 f4e5025 之前）后重传文档。
+  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo 正文。
   private async runPipeline(
     documentId: string,
     content: string,
     signal: AbortSignal,
   ): Promise<void> {
     await this.contents.create({ document_id: documentId, content });
-    if (signal.aborted) throw new IngestTimeoutError(this.ingestTimeoutMs);
-    await this.chunksRepo.save({
-      id: randomUUID(),
-      documentId,
-      seq: 0,
-      content,
-      embedding: new Array<number>(EMBEDDING_DIM).fill(0),
-    });
     if (signal.aborted) throw new IngestTimeoutError(this.ingestTimeoutMs);
     await this.documentsRepo.update(documentId, { status: 'ready' });
   }
@@ -129,7 +115,7 @@ export class DocumentsService {
     }));
   }
 
-  // 双库清理集中在此：删 PG 行（chunks 级联）+ 删 Mongo 正文。
+  // 双库清理集中在此：删 PG 行 + 删 Mongo 正文。
   // 两步均无条件执行 → 目标不存在时幂等；任一侧残留时重试 DELETE 会补齐。
   async remove(id: string): Promise<void> {
     await this.documentsRepo.delete(id);
@@ -137,7 +123,7 @@ export class DocumentsService {
     this.logger.log(`删除文档 doc=${id}`);
   }
 
-  // 失败/超时：documents 行保持 failed；尽力清理 Mongo 正文与可能已写入的 chunks。
+  // 失败/超时：documents 行保持 failed；尽力清理 Mongo 正文。
   private async cleanupFailed(
     documentId: string,
     cause: unknown,
@@ -145,11 +131,6 @@ export class DocumentsService {
     const reason = cause instanceof Error ? cause.message : String(cause);
     this.logger.error(`摄取失败 doc=${documentId}: ${reason}`);
     // 行创建即 failed（见 ingestUpload），无需回写状态。
-    try {
-      await this.chunksRepo.delete({ documentId });
-    } catch (e) {
-      this.logger.error(`清理 chunks 失败 doc=${documentId}: ${String(e)}`);
-    }
     try {
       await this.contents.deleteOne({ document_id: documentId });
     } catch (e) {
