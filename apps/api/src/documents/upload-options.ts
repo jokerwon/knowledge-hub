@@ -1,7 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
 import * as path from 'node:path';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import type { AppConfig } from '../config';
+import { DEFAULT_MAX_UPLOAD_BYTES } from '@kh/shared';
+import { cfgInt } from '../config';
 
 export const UPLOAD_FIELD = 'file';
 
@@ -14,10 +16,12 @@ const isAllowedMime = (mime: string): boolean =>
   mime.startsWith('text/') ||
   mime === 'application/octet-stream';
 
-// 由配置生成 multer 选项：原模块级常量改为工厂，fileSize 跟随注入的配置。
-export function buildUploadOptions(config: AppConfig): MulterOptions {
+// 由配置生成 multer 选项：fileSize 跟随 UPLOAD_MAX_BYTES。
+export function buildUploadOptions(cfg: ConfigService): MulterOptions {
   return {
-    limits: { fileSize: config.uploadMaxBytes },
+    limits: {
+      fileSize: cfgInt(cfg, 'UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
+    },
     fileFilter: (_req, file, callback) => {
       const ext = path.extname(file.originalname).toLowerCase();
       if (ALLOWED_EXTENSIONS.includes(ext) && isAllowedMime(file.mimetype)) {

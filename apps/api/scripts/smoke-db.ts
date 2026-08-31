@@ -42,7 +42,7 @@ async function main() {
   try {
     // ---- 1. migration 已应用的证据 ----
     const applied: QueryResult<Row> = await pg.query(
-      `SELECT name FROM typeorm_migrations ORDER BY timestamp`,
+      `SELECT name FROM migrations ORDER BY timestamp`,
     );
     console.log(
       '  applied migrations:',

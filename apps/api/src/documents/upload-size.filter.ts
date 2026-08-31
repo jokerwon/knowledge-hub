@@ -3,16 +3,25 @@ import {
   Catch,
   ExecutionContext,
   HttpStatus,
-  Inject,
   PayloadTooLargeException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import { APP_CONFIG, type AppConfig } from '../config';
+import { DEFAULT_MAX_UPLOAD_BYTES } from '@kh/shared';
+import { cfgInt } from '../config';
 
 // multer 超限原生为 413；计划要求违规一律 400 且响应体带明确原因。
 @Catch(PayloadTooLargeException)
 export class UploadSizeFilter implements ExceptionFilter {
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  private readonly uploadMaxBytes: number;
+
+  constructor(cfg: ConfigService) {
+    this.uploadMaxBytes = cfgInt(
+      cfg,
+      'UPLOAD_MAX_BYTES',
+      DEFAULT_MAX_UPLOAD_BYTES,
+    );
+  }
 
   catch(_exception: PayloadTooLargeException, host: ExecutionContext): void {
     host
@@ -21,7 +30,7 @@ export class UploadSizeFilter implements ExceptionFilter {
       .status(HttpStatus.BAD_REQUEST)
       .json({
         statusCode: HttpStatus.BAD_REQUEST,
-        message: `文件大小超过上限（≤ ${this.config.uploadMaxBytes} 字节）`,
+        message: `文件大小超过上限（≤ ${this.uploadMaxBytes} 字节）`,
         error: 'Bad Request',
       });
   }

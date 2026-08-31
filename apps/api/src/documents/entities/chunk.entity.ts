@@ -42,7 +42,7 @@ export class ChunkEntity {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @ManyToOne(() => DocumentEntity, (doc) => doc.chunks, {
+  @ManyToOne(() => DocumentEntity, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({

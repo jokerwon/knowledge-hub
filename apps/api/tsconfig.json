@@ -16,7 +16,7 @@
     "rootDir": ".",
     "baseUrl": "./",
     "ignoreDeprecations": "6.0",
-    "types": ["node", "jest", "multer"],
+    "types": ["node", "multer"],
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,

@@ -1,29 +1,37 @@
 import {
   GatewayTimeoutException,
   HttpException,
-  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { DocumentDto } from '@kh/shared';
+import { DEFAULT_INGEST_TIMEOUT_MS } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
 import type { Model } from 'mongoose';
 import type { Repository } from 'typeorm';
-import { APP_CONFIG, CURRENT_USER_ID, type AppConfig } from '../config';
+import { CURRENT_USER_ID, cfgInt } from '../config';
+import { EMBEDDING_DIM } from '../database/vector-transformer';
 import { ChunkEntity } from './entities/chunk.entity';
 import { DocumentEntity } from './entities/document.entity';
 import { DocumentContent } from './schemas/document-content.schema';
 import type { DocumentContentDoc } from './schemas/document-content.schema';
-import { IngestTimeoutError } from '../ingest/errors';
-import { IngestService } from '../ingest/ingest.service';
 
-// 上传校验与删除编排集中在此（ADR-0005）；不 import langchain。
+class IngestTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`摄取超时（${timeoutMs}ms），文档已标记为 failed`);
+    this.name = 'IngestTimeoutError';
+  }
+}
+
+// 上传校验、摄取与删除编排集中在此（ADR-0005）。
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
+  private readonly ingestTimeoutMs: number;
 
   constructor(
     @InjectRepository(DocumentEntity)
@@ -32,9 +40,14 @@ export class DocumentsService {
     private readonly chunksRepo: Repository<ChunkEntity>,
     @InjectModel(DocumentContent.name)
     private readonly contents: Model<DocumentContentDoc>,
-    private readonly ingestService: IngestService,
-    @Inject(APP_CONFIG) private readonly config: AppConfig,
-  ) {}
+    cfg: ConfigService,
+  ) {
+    this.ingestTimeoutMs = cfgInt(
+      cfg,
+      'INGEST_TIMEOUT_MS',
+      DEFAULT_INGEST_TIMEOUT_MS,
+    );
+  }
 
   // 同步摄取（ADR-0008）：响应即最终结果。
   async ingestUpload(file: Express.Multer.File): Promise<DocumentDto> {
@@ -57,18 +70,16 @@ export class DocumentsService {
     const timeoutGate = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => {
         abort.abort();
-        reject(new IngestTimeoutError(this.config.ingestTimeoutMs));
-      }, this.config.ingestTimeoutMs);
+        reject(new IngestTimeoutError(this.ingestTimeoutMs));
+      }, this.ingestTimeoutMs);
     });
 
     try {
       const pipeline = this.runPipeline(document.id, content, abort.signal);
       // race 输掉的分支不得成为 unhandled rejection。
       pipeline.catch(() => undefined);
-      const chunkCount = await Promise.race([pipeline, timeoutGate]);
-      this.logger.log(
-        `摄取成功 doc=${document.id} title="${title}" chunks=${chunkCount}`,
-      );
+      await Promise.race([pipeline, timeoutGate]);
+      this.logger.log(`摄取成功 doc=${document.id} title="${title}"`);
       return {
         id: document.id,
         title,
@@ -83,23 +94,25 @@ export class DocumentsService {
     }
   }
 
-  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo → 摄取（ADR-0005）。
+  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo → chunks（ADR-0005）。
+  // ponytail: 暂跳过切分与向量化，整篇正文作为一个 chunk、embedding 零向量占位；
+  // 恢复管线（切分/embedding 在 git 历史 f4e5025 之前）后重传文档。
   private async runPipeline(
     documentId: string,
     content: string,
     signal: AbortSignal,
-  ): Promise<number> {
+  ): Promise<void> {
     await this.contents.create({ document_id: documentId, content });
-    const chunkCount = await this.ingestService.ingestDocument(
+    if (signal.aborted) throw new IngestTimeoutError(this.ingestTimeoutMs);
+    await this.chunksRepo.save({
+      id: randomUUID(),
       documentId,
+      seq: 0,
       content,
-      signal,
-    );
-    if (signal.aborted) {
-      throw new IngestTimeoutError(this.config.ingestTimeoutMs);
-    }
+      embedding: new Array<number>(EMBEDDING_DIM).fill(0),
+    });
+    if (signal.aborted) throw new IngestTimeoutError(this.ingestTimeoutMs);
     await this.documentsRepo.update(documentId, { status: 'ready' });
-    return chunkCount;
   }
 
   // 不暴露 user_id（契约仅 id/title/status/created_at）。

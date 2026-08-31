@@ -3,11 +3,9 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  OneToMany,
   PrimaryColumn,
 } from 'typeorm';
 import type { DocumentStatus } from '@kh/shared';
-import { ChunkEntity } from './chunk.entity';
 
 @Entity('documents')
 // CHECK 约束与 migration 保持一致；TypeORM 据此判断无需改动。
@@ -28,7 +26,4 @@ export class DocumentEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
-
-  @OneToMany(() => ChunkEntity, (chunk) => chunk.document)
-  chunks!: ChunkEntity[];
 }

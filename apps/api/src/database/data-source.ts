@@ -36,7 +36,5 @@ export function buildDataSourceOptions(): DataSourceOptions {
     migrationsRun: false, // 不在启动时自动跑 migration；显式 pnpm migration:run。
     ssl: bool(process.env.PG_SSL, false),
     logging: bool(process.env.PG_LOGGING, false),
-    migrationsTableName: 'typeorm_migrations',
-    metadataTableName: 'typeorm_metadata',
   };
 }
