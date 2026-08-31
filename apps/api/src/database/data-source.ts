@@ -18,11 +18,11 @@ export function buildDataSourceOptions(): DataSourceOptions {
     throw new Error('DATABASE_URL 未配置，请检查 .env');
   }
 
-  const isProd = process.env.NODE_ENV === 'production';
-  // 编译后 data-source.ts 位于 dist/database/data-source.js；开发态 ts-node 也把它当此目录看待。
-  // 因此 baseDir 始终指向编译后的 database/ 目录。
+  // 编译后本文件位于 dist/database/data-source.js；typeorm CLI（ts-node）则为 src 下 的 .ts。
+  // 扩展名按当前文件实际情况取，不能用 NODE_ENV 判断——nest start --watch 也是跑编译后的 js，
+  // 但 dev 环境 NODE_ENV 不是 production，曾导致 entities glob 匹配不到文件、实体未注册。
   const databaseDir = __dirname;
-  const ext = isProd ? 'js' : 'ts';
+  const ext = __filename.endsWith('.ts') ? 'ts' : 'js';
 
   return {
     type: 'postgres',
