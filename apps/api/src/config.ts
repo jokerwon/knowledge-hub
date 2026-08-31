@@ -1,38 +1,83 @@
-import * as dotenv from 'dotenv';
 import * as path from 'node:path';
+import { Module, type Provider } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
+  DEFAULT_EMBEDDING_DIM,
   DEFAULT_INGEST_TIMEOUT_MS,
   DEFAULT_MAX_UPLOAD_BYTES,
 } from '@kh/shared';
 
-// 加载 monorepo 根的 .env（与 database/data-source.ts 同一约定）；
-// pnpm 脚本的 CWD 为 apps/api，上溯 2 级到仓库根。
-dotenv.config({ path: path.resolve(process.cwd(), '..', '..', '.env') });
+// 配置经 @nestjs/config 统一加载：envFilePath 指向 monorepo 根的 .env
+// （与 database/data-source.ts 同一约定）；pnpm 脚本的 CWD 为 apps/api，
+// 上溯 2 级到仓库根。cli（typeorm 迁移、冒烟脚本）不经过 Nest 容器，
+// 仍由 data-source.ts / 各脚本自行 dotenv，不走本模块。
+const rootEnv = path.resolve(process.cwd(), '..', '..', '.env');
 
-const int = (v: string | undefined, fallback: number): number => {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
+export const AppConfigModule = ConfigModule.forRoot({
+  isGlobal: true,
+  envFilePath: rootEnv,
+});
 
-export const config = {
-  uploadMaxBytes: int(process.env.UPLOAD_MAX_BYTES, DEFAULT_MAX_UPLOAD_BYTES),
-  chunkSize: int(process.env.CHUNK_SIZE, DEFAULT_CHUNK_SIZE),
-  chunkOverlap: int(process.env.CHUNK_OVERLAP, DEFAULT_CHUNK_OVERLAP),
-  ingestTimeoutMs: int(
-    process.env.INGEST_TIMEOUT_MS,
-    DEFAULT_INGEST_TIMEOUT_MS,
-  ),
-  embeddingDim: int(process.env.EMBEDDING_DIM, 768),
+// 应用配置的形状：调用侧只依赖此接口，不直接接触 ConfigService 泛型。
+export interface AppConfig {
+  uploadMaxBytes: number;
+  chunkSize: number;
+  chunkOverlap: number;
+  ingestTimeoutMs: number;
+  embeddingDim: number;
   llm: {
-    baseUrl: process.env.LLM_BASE_URL ?? '',
-    apiKey: process.env.LLM_API_KEY ?? '',
-    embedModel: process.env.LLM_EMBED_MODEL ?? '',
-    chatModel: process.env.LLM_CHAT_MODEL ?? '',
+    baseUrl: string;
+    apiKey: string;
+    chatModel: string;
+  };
+  // embedding 与 LLM 网关分开定义：两者的接口地址与模型可能部署在不同服务。
+  embed: {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+  };
+}
+
+export const APP_CONFIG = Symbol('APP_CONFIG');
+
+export const appConfigProvider: Provider = {
+  provide: APP_CONFIG,
+  inject: [ConfigService],
+  useFactory: (cfg: ConfigService): AppConfig => {
+    const int = (key: string, fallback: number): number => {
+      const n = Number(cfg.get<string>(key));
+      return Number.isFinite(n) && n > 0 ? n : fallback;
+    };
+    return {
+      uploadMaxBytes: int('UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
+      chunkSize: int('CHUNK_SIZE', DEFAULT_CHUNK_SIZE),
+      chunkOverlap: int('CHUNK_OVERLAP', DEFAULT_CHUNK_OVERLAP),
+      ingestTimeoutMs: int('INGEST_TIMEOUT_MS', DEFAULT_INGEST_TIMEOUT_MS),
+      embeddingDim: int('EMBEDDING_DIM', DEFAULT_EMBEDDING_DIM),
+      llm: {
+        baseUrl: cfg.get<string>('LLM_BASE_URL') ?? '',
+        apiKey: cfg.get<string>('LLM_API_KEY') ?? '',
+        chatModel: cfg.get<string>('LLM_CHAT_MODEL') ?? '',
+      },
+      embed: {
+        baseUrl: cfg.get<string>('EMBED_BASE_URL') ?? '',
+        apiKey: cfg.get<string>('EMBED_API_KEY') ?? '',
+        model: cfg.get<string>('EMBED_MODEL') ?? '',
+      },
+    };
   },
 };
 
 // 单用户起步（ADR-0002）：user_id 的唯一来源，当前恒为 null，
 // 未来补认证后只改这一处。业务代码禁止再出现其它 user 假设。
 export const CURRENT_USER_ID: string | null = null;
+
+// 集中注册 APP_CONFIG：业务模块统一 import 此模块，不再各自重复 provide。
+@Module({
+  imports: [AppConfigModule],
+  providers: [appConfigProvider],
+  exports: [APP_CONFIG],
+})
+export class AppConfigProviderModule {}

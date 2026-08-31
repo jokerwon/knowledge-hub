@@ -18,7 +18,7 @@ export class EmbeddingDimensionError extends Error {
 export class EmbeddingConfigError extends Error {
   constructor() {
     super(
-      'LLM 网关未配置：请在 .env 设置 LLM_BASE_URL 与 LLM_EMBED_MODEL（见 ADR-0007）',
+      'Embedding 网关未配置：请在 .env 设置 EMBED_BASE_URL 与 EMBED_MODEL（见 ADR-0007）',
     );
     this.name = 'EmbeddingConfigError';
   }

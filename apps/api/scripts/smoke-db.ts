@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '..', '..', '.env') });
 
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
+import { DEFAULT_EMBEDDING_DIM } from '@kh/shared';
 import mongoose from 'mongoose';
 import { Client } from 'pg';
 
@@ -72,7 +73,7 @@ async function main() {
     // ---- 3. 向量插入 + 余弦查询 ----
     const docId = randomUUID();
     const chunkIds = [randomUUID(), randomUUID(), randomUUID()];
-    const dim = Number(process.env.EMBEDDING_DIM) || 768;
+    const dim = Number(process.env.EMBEDDING_DIM) || DEFAULT_EMBEDDING_DIM;
     // 构造三条向量，方向彼此不同；已知 query 方向应与第 1 条最近，第 3 条最远。
     const vNear = new Array(dim).fill(0).map((_, i) => (i % 2 === 0 ? 1 : 0));
     const vMid = new Array(dim).fill(0.5);

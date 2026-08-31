@@ -12,11 +12,6 @@ const bool = (v: string | undefined, fallback: boolean): boolean => {
   return v === '1' || v.toLowerCase() === 'true';
 };
 
-const int = (v: string | undefined, fallback: number): number => {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
-
 export function buildDataSourceOptions(): DataSourceOptions {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -42,5 +37,3 @@ export function buildDataSourceOptions(): DataSourceOptions {
     metadataTableName: 'typeorm_metadata',
   };
 }
-
-export const EMBEDDING_DIM = int(process.env.EMBEDDING_DIM, 768);

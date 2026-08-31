@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import * as path from 'node:path';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import { config } from '../config';
+import type { AppConfig } from '../config';
 
 export const UPLOAD_FIELD = 'file';
 
@@ -14,18 +14,21 @@ const isAllowedMime = (mime: string): boolean =>
   mime.startsWith('text/') ||
   mime === 'application/octet-stream';
 
-export const UPLOAD_OPTIONS: MulterOptions = {
-  limits: { fileSize: config.uploadMaxBytes },
-  fileFilter: (_req, file, callback) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ALLOWED_EXTENSIONS.includes(ext) && isAllowedMime(file.mimetype)) {
-      return callback(null, true);
-    }
-    callback(
-      new BadRequestException(
-        `仅支持 .md / .txt 文件：收到 ${file.originalname}（${file.mimetype || '未知 MIME'}）`,
-      ),
-      false,
-    );
-  },
-};
+// 由配置生成 multer 选项：原模块级常量改为工厂，fileSize 跟随注入的配置。
+export function buildUploadOptions(config: AppConfig): MulterOptions {
+  return {
+    limits: { fileSize: config.uploadMaxBytes },
+    fileFilter: (_req, file, callback) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (ALLOWED_EXTENSIONS.includes(ext) && isAllowedMime(file.mimetype)) {
+        return callback(null, true);
+      }
+      callback(
+        new BadRequestException(
+          `仅支持 .md / .txt 文件：收到 ${file.originalname}（${file.mimetype || '未知 MIME'}）`,
+        ),
+        false,
+      );
+    },
+  };
+}

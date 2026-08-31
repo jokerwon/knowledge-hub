@@ -2,6 +2,7 @@ import {
   BadRequestException,
   GatewayTimeoutException,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -12,16 +13,13 @@ import type { DocumentDto } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
 import type { Model } from 'mongoose';
 import type { Repository } from 'typeorm';
-import { config, CURRENT_USER_ID } from '../config';
+import { APP_CONFIG, CURRENT_USER_ID, type AppConfig } from '../config';
 import { ChunkEntity } from '../database/entities/chunk.entity';
 import { DocumentEntity } from '../database/entities/document.entity';
 import { DocumentContent } from '../database/schemas/document-content.schema';
 import type { DocumentContentDoc } from '../database/schemas/document-content.schema';
 import { IngestTimeoutError } from '../ingest/errors';
 import { IngestService } from '../ingest/ingest.service';
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 上传校验与删除编排集中在此（ADR-0005）；不 import langchain。
 @Injectable()
@@ -36,6 +34,7 @@ export class DocumentsService {
     @InjectModel(DocumentContent.name)
     private readonly contents: Model<DocumentContentDoc>,
     private readonly ingestService: IngestService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   // 同步摄取（ADR-0008）：响应即最终结果。
@@ -59,8 +58,8 @@ export class DocumentsService {
     const timeoutGate = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => {
         abort.abort();
-        reject(new IngestTimeoutError(config.ingestTimeoutMs));
-      }, config.ingestTimeoutMs);
+        reject(new IngestTimeoutError(this.config.ingestTimeoutMs));
+      }, this.config.ingestTimeoutMs);
     });
 
     try {
@@ -98,7 +97,7 @@ export class DocumentsService {
       signal,
     );
     if (signal.aborted) {
-      throw new IngestTimeoutError(config.ingestTimeoutMs);
+      throw new IngestTimeoutError(this.config.ingestTimeoutMs);
     }
     await this.documentsRepo.update(documentId, { status: 'ready' });
     return chunkCount;
@@ -121,9 +120,6 @@ export class DocumentsService {
   // 双库清理集中在此（ADR-0005）：删 PG 行（chunks 级联）+ 删 Mongo 正文。
   // 两步均无条件执行 → 目标不存在时幂等；任一侧残留时重试 DELETE 会补齐。
   async remove(id: string): Promise<void> {
-    if (!UUID_RE.test(id)) {
-      throw new BadRequestException('id 必须是 UUID');
-    }
     await this.documentsRepo.delete(id);
     await this.contents.deleteOne({ document_id: id });
     this.logger.log(`删除文档 doc=${id}`);
@@ -136,11 +132,7 @@ export class DocumentsService {
   ): Promise<void> {
     const reason = cause instanceof Error ? cause.message : String(cause);
     this.logger.error(`摄取失败 doc=${documentId}: ${reason}`);
-    try {
-      await this.documentsRepo.update(documentId, { status: 'failed' });
-    } catch (e) {
-      this.logger.error(`回写 failed 状态失败 doc=${documentId}: ${String(e)}`);
-    }
+    // 行创建即 failed（见 ingestUpload），无需回写状态。
     try {
       await this.chunksRepo.delete({ documentId });
     } catch (e) {

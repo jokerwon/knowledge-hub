@@ -30,6 +30,6 @@ export class DocumentEntity {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @OneToMany(() => ChunkEntity, (chunk) => chunk.document, { cascade: true })
+  @OneToMany(() => ChunkEntity, (chunk) => chunk.document)
   chunks!: ChunkEntity[];
 }

@@ -2,7 +2,7 @@
 // @langchain/openai v1 的 embedDocuments 会对所有批次 Promise.all 全并发，
 // 因此这里自建小并发池：每批一次请求，最多 EMBED_MAX_CONCURRENCY 个并发请求。
 import { OpenAIEmbeddings } from '@langchain/openai';
-import { config } from '../config';
+import type { AppConfig } from '../config';
 import {
   EmbeddingConfigError,
   EmbeddingDimensionError,
@@ -12,20 +12,15 @@ import {
 const EMBED_BATCH_SIZE = 16;
 const EMBED_MAX_CONCURRENCY = 4;
 
-// 边界内的最小接口：调用侧只依赖它，不直接接触三方泛型类型。
-export interface EmbeddingsClient {
-  embedDocuments(texts: string[]): Promise<number[][]>;
-}
-
-export function createEmbeddings(): EmbeddingsClient {
-  const { baseUrl, apiKey, embedModel } = config.llm;
-  if (!baseUrl || !embedModel) {
+export function createEmbeddings(config: AppConfig): OpenAIEmbeddings {
+  const { baseUrl, apiKey, model } = config.embed;
+  if (!baseUrl || !model) {
     throw new EmbeddingConfigError();
   }
   return new OpenAIEmbeddings({
     // 内部网关可能不校验密钥，但 OpenAI SDK 要求非空。
     apiKey: apiKey || 'no-api-key',
-    model: embedModel,
+    model,
     configuration: { baseURL: baseUrl },
     batchSize: EMBED_BATCH_SIZE,
     // 单请求护栏：与请求级超时对齐，避免挂死（配合编排层 Promise.race）。
@@ -34,12 +29,13 @@ export function createEmbeddings(): EmbeddingsClient {
 }
 
 export async function embedTexts(
+  config: AppConfig,
   texts: string[],
   signal?: AbortSignal,
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const client = createEmbeddings();
+  const client = createEmbeddings(config);
   const batches: string[][] = [];
   for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
     batches.push(texts.slice(i, i + EMBED_BATCH_SIZE));
@@ -50,7 +46,9 @@ export async function embedTexts(
   const workerCount = Math.min(EMBED_MAX_CONCURRENCY, batches.length);
   const workers = Array.from({ length: workerCount }, async () => {
     for (;;) {
-      if (signal?.aborted) throw new IngestTimeoutError(config.ingestTimeoutMs);
+      if (signal?.aborted) {
+        throw new IngestTimeoutError(config.ingestTimeoutMs);
+      }
       const index = cursor;
       cursor += 1;
       if (index >= batches.length) return;

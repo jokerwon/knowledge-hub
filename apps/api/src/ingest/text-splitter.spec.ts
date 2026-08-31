@@ -1,14 +1,27 @@
+import type { AppConfig } from '../config';
 import { splitContent } from './text-splitter';
 
 // P4-5 验证：给定样例文档，切片数与序号可预期、可断言。
-// 测试环境未设 CHUNK_* 变量，config 落回默认 500/50。
+// 测试不经过 Nest 容器，直接以默认值构造配置（CHUNK_SIZE=500 / CHUNK_OVERLAP=50）。
+const defaultConfig = {
+  uploadMaxBytes: 2097152,
+  chunkSize: 500,
+  chunkOverlap: 50,
+  ingestTimeoutMs: 60000,
+  embeddingDim: 768,
+  llm: { baseUrl: '', apiKey: '', chatModel: '' },
+  embed: { baseUrl: '', apiKey: '', model: '' },
+} satisfies AppConfig;
+
+const split = (content: string) => splitContent(defaultConfig, content);
+
 describe('splitContent（RecursiveCharacterTextSplitter, markdown 优先）', () => {
   it('空文档切出 0 片', async () => {
-    await expect(splitContent('')).resolves.toEqual([]);
+    await expect(split('')).resolves.toEqual([]);
   });
 
   it('短文档单片返回', async () => {
-    const chunks = await splitContent('# 标题\n正文一段。');
+    const chunks = await split('# 标题\n正文一段。');
     expect(chunks).toHaveLength(1);
     expect(chunks[0]).toContain('# 标题');
   });
@@ -18,7 +31,7 @@ describe('splitContent（RecursiveCharacterTextSplitter, markdown 优先）', ()
     const text = Array.from({ length: 1200 }, (_, i) => String(i % 10)).join(
       '',
     );
-    const chunks = await splitContent(text);
+    const chunks = await split(text);
 
     expect(chunks.length).toBe(3);
     for (const chunk of chunks) {
@@ -44,7 +57,7 @@ describe('splitContent（RecursiveCharacterTextSplitter, markdown 优先）', ()
       `## 第三节`,
       para,
     ].join('\n\n');
-    const chunks = await splitContent(text);
+    const chunks = await split(text);
 
     // 实测确定性行为：首片 = 文档标题 + 第一节（合计 344 < 500 合并），
     // 第二/三节在 "\n## " 结构分隔符处各自成片的开头。

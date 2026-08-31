@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { ChunkEntity } from '../database/entities/chunk.entity';
-import { config } from '../config';
+import { APP_CONFIG, type AppConfig } from '../config';
 import { embedTexts } from './embeddings-client';
 import { IngestTimeoutError } from './errors';
 import { splitContent } from './text-splitter';
@@ -15,6 +15,7 @@ export class IngestService {
   constructor(
     @InjectRepository(ChunkEntity)
     private readonly chunksRepo: Repository<ChunkEntity>,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   async ingestDocument(
@@ -23,10 +24,10 @@ export class IngestService {
     signal?: AbortSignal,
   ): Promise<number> {
     this.assertNotTimedOut(signal);
-    const texts = await splitContent(content);
+    const texts = await splitContent(this.config, content);
 
     this.assertNotTimedOut(signal);
-    const embeddings = await embedTexts(texts, signal);
+    const embeddings = await embedTexts(this.config, texts, signal);
 
     this.assertNotTimedOut(signal);
     const chunks = texts.map((text, seq) => ({
@@ -44,7 +45,7 @@ export class IngestService {
 
   private assertNotTimedOut(signal?: AbortSignal): void {
     if (signal?.aborted) {
-      throw new IngestTimeoutError(config.ingestTimeoutMs);
+      throw new IngestTimeoutError(this.config.ingestTimeoutMs);
     }
   }
 }

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   UploadedFile,
   UseFilters,
@@ -14,7 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { DocumentDto } from '@kh/shared';
 import { DocumentsService } from './documents.service';
-import { UPLOAD_FIELD, UPLOAD_OPTIONS } from './upload-options';
+import { UPLOAD_FIELD } from './upload-options';
 import { UploadSizeFilter } from './upload-size.filter';
 
 @Controller('documents')
@@ -23,9 +24,11 @@ export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
   // 同步摄取（ADR-0008）：响应即最终结果，200 表示 ready。
+  // multer 选项（大小上限、扩展名白名单）在 DocumentsModule 经
+  // MulterModule.registerAsync 注册为默认值，此处不再传第二参。
   @Post()
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor(UPLOAD_FIELD, UPLOAD_OPTIONS))
+  @UseInterceptors(FileInterceptor(UPLOAD_FIELD))
   async upload(
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<DocumentDto> {
@@ -44,7 +47,7 @@ export class DocumentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.documentsService.remove(id);
   }
 }
