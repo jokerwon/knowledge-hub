@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { DEFAULT_EMBEDDING_DIM } from '@kh/shared';
 import mongoose from 'mongoose';
 import { Client } from 'pg';
+import type { QueryResult } from 'pg';
 
 const fail = (msg: string): never => {
   console.error('[FAIL]', msg);
@@ -22,22 +23,31 @@ const check = (cond: unknown, label: string) => {
   else fail(label);
 };
 
+// pg.query 返回 QueryResult<any>，行类型未知；冒烟脚本统一按行形状标注，避免 unsafe-* 噪音。
+type Row = Record<string, any>;
+
 async function main() {
   const PG_URL = process.env.DATABASE_URL;
   const MONGO_URL = process.env.MONGO_URL;
   if (!PG_URL) fail('DATABASE_URL 未配置');
   if (!MONGO_URL) fail('MONGO_URL 未配置');
 
-  const pg = new Client({ connectionString: PG_URL, connectionTimeoutMillis: 8000 });
+  const pg = new Client({
+    connectionString: PG_URL,
+    connectionTimeoutMillis: 8000,
+  });
   await pg.connect();
   console.log('[TEST] PostgreSQL connected');
 
   try {
     // ---- 1. migration 已应用的证据 ----
-    const applied = await pg.query(
+    const applied: QueryResult<Row> = await pg.query(
       `SELECT name FROM typeorm_migrations ORDER BY timestamp`,
     );
-    console.log('  applied migrations:', applied.rows.map((r) => r.name).join(', '));
+    console.log(
+      '  applied migrations:',
+      applied.rows.map((r) => r.name).join(', '),
+    );
     check(
       applied.rows.some((r) => r.name.startsWith('CreateDocuments')),
       'CreateDocuments migration 已应用',
@@ -48,18 +58,21 @@ async function main() {
     );
 
     // ---- 2. 表结构与 vector 扩展 ----
-    const tables = await pg.query(`
+    const tables: QueryResult<Row> = await pg.query(`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema='public' AND table_name IN ('documents','chunks')
     `);
     check(tables.rows.length === 2, 'documents 与 chunks 表存在');
 
-    const vec = await pg.query(
+    const vec: QueryResult<Row> = await pg.query(
       `SELECT extversion FROM pg_extension WHERE extname='vector'`,
     );
-    check(vec.rows.length > 0, `pgvector 扩展已装 (v${vec.rows[0]?.extversion})`);
+    check(
+      vec.rows.length > 0,
+      `pgvector 扩展已装 (v${vec.rows[0]?.extversion})`,
+    );
 
-    const idx = await pg.query(`
+    const idx: QueryResult<Row> = await pg.query(`
       SELECT indexname, indexdef FROM pg_indexes
       WHERE tablename='chunks' AND indexname='chunks_embedding_hnsw_idx'
     `);
@@ -94,20 +107,23 @@ async function main() {
     }
 
     const query = vNear;
-    const nearest = await pg.query(
+    const nearest: QueryResult<Row> = await pg.query(
       `SELECT id, seq, 1 - (embedding <=> $1::vector) AS cosine
        FROM chunks WHERE document_id=$2
        ORDER BY embedding <=> $1::vector`,
       [JSON.stringify(query), docId],
     );
-    console.log('  nearest-first seq order:', nearest.rows.map((r) => r.seq));
+    console.log(
+      '  nearest-first seq order:',
+      nearest.rows.map((r) => r.seq),
+    );
     check(
       nearest.rows.length === 3 && nearest.rows[0].seq === 0,
       'ORDER BY embedding <=> 排序正确（第 0 条最接近）',
     );
 
     // ---- 4. EXPLAIN ANALYZE 验证 HNSW 索引被用到 ----
-    const plan = await pg.query(
+    const plan: QueryResult<Row> = await pg.query(
       `EXPLAIN (FORMAT JSON) SELECT id FROM chunks ORDER BY embedding <=> $1::vector LIMIT 5`,
       [JSON.stringify(query)],
     );
@@ -154,7 +170,9 @@ async function main() {
   } catch (e) {
     try {
       await pg.query('ROLLBACK');
-    } catch {}
+    } catch {
+      // 忽略 ROLLBACK 失败（连接已断开等），原始异常继续抛出
+    }
     throw e;
   } finally {
     await pg.end();
