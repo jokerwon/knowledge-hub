@@ -2,7 +2,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { EMBEDDING_DIM } from '../vector-transformer';
 
 // P3-4：chunks 表 + HNSW 索引。
-// embedding 维度由 EMBEDDING_DIM 环境变量决定（默认 768），换维度需新迁移 + 文档重传（ADR-0012）。
+// embedding 维度由 EMBEDDING_DIM 环境变量决定（默认 768），换维度需新迁移 + 文档重传。
 // 余弦相似度查询使用 <=>，HNSW 索引须以 vector_cosine_ops 建。
 //
 // 运维约定：TypeORM 1.1 不支持 HNSW / operator class，因此实体不声明此索引。

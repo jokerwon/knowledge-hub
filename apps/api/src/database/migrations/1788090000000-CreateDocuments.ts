@@ -1,8 +1,8 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 // P3-3：启用 pgvector 扩展 + 创建 documents 表。
-// - id uuid PK 由应用层生成（ADR-0013）
-// - user_id uuid NULL 为多用户演进预留（ADR-0002）
+// - id uuid PK 由应用层生成
+// - user_id uuid NULL 为多用户演进预留
 // - status 用 CHECK 约束限定 ready/failed
 export class CreateDocuments1788090000000 implements MigrationInterface {
   name = 'CreateDocuments1788090000000';

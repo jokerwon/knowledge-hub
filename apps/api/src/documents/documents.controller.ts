@@ -23,7 +23,7 @@ import { UploadSizeFilter } from './upload-size.filter';
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
-  // 同步摄取（ADR-0008）：响应即最终结果，200 表示 ready。
+  // 同步摄取：响应即最终结果，200 表示 ready。
   // multer 选项（大小上限、扩展名白名单）在 DocumentsModule 经
   // MulterModule.registerAsync 注册为默认值，此处不再传第二参。
   @Post()

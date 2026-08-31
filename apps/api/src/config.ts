@@ -20,6 +20,6 @@ export function cfgInt(
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-// 单用户起步（ADR-0002）：user_id 的唯一来源，当前恒为 null，
+// 单用户起步：user_id 的唯一来源，当前恒为 null，
 // 未来补认证后只改这一处。业务代码禁止再出现其它 user 假设。
 export const CURRENT_USER_ID: string | null = null;

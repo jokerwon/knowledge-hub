@@ -27,7 +27,7 @@ class IngestTimeoutError extends Error {
   }
 }
 
-// 上传校验、摄取与删除编排集中在此（ADR-0005）。
+// 上传校验、摄取与删除编排集中在此。
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
@@ -49,7 +49,7 @@ export class DocumentsService {
     );
   }
 
-  // 同步摄取（ADR-0008）：响应即最终结果。
+  // 同步摄取：响应即最终结果。
   async ingestUpload(file: Express.Multer.File): Promise<DocumentDto> {
     const title = titleFromFilename(file.originalname);
     const content = file.buffer.toString('utf8').replace(/^\uFEFF/, '');
@@ -94,7 +94,7 @@ export class DocumentsService {
     }
   }
 
-  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo → chunks（ADR-0005）。
+  // 写入顺序固定 PG（documents 行已在调用前插入）→ Mongo → chunks。
   // ponytail: 暂跳过切分与向量化，整篇正文作为一个 chunk、embedding 零向量占位；
   // 恢复管线（切分/embedding 在 git 历史 f4e5025 之前）后重传文档。
   private async runPipeline(
@@ -129,7 +129,7 @@ export class DocumentsService {
     }));
   }
 
-  // 双库清理集中在此（ADR-0005）：删 PG 行（chunks 级联）+ 删 Mongo 正文。
+  // 双库清理集中在此：删 PG 行（chunks 级联）+ 删 Mongo 正文。
   // 两步均无条件执行 → 目标不存在时幂等；任一侧残留时重试 DELETE 会补齐。
   async remove(id: string): Promise<void> {
     await this.documentsRepo.delete(id);
