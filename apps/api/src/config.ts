@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { Module, type Provider } from '@nestjs/common';
+import { Global, Module, type Provider } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
   DEFAULT_CHUNK_OVERLAP,
@@ -75,6 +75,9 @@ export const appConfigProvider: Provider = {
 export const CURRENT_USER_ID: string | null = null;
 
 // 集中注册 APP_CONFIG：业务模块统一 import 此模块，不再各自重复 provide。
+// @Global：第三方模块（如 MulterModule.registerAsync 的工厂）在自己的注入器里
+// 解析 inject: [APP_CONFIG]，无法导入本模块，必须全局可见。
+@Global()
 @Module({
   imports: [AppConfigModule],
   providers: [appConfigProvider],
