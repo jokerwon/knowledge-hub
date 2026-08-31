@@ -30,7 +30,7 @@ apps/api/src/chat/        # POST /chat SSE controller（只依赖 retrieval 的�
 
 ### 2. LLM 边界工厂（P5-2，2h）
 
-- `retrieval/`（或与 ingest 共享的 llm 边界）内统一工厂：由 `LLM_BASE_URL / LLM_API_KEY / LLM_CHAT_MODEL / LLM_EMBED_MODEL` 构造 Chat 模型与 Embeddings。
+- `retrieval/`（或与 ingest 共享的 llm 边界）内统一工厂：Chat 由 `LLM_BASE_URL / LLM_API_KEY / LLM_CHAT_MODEL` 构造；Embeddings 由 `EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL` 构造（P4 已拆分两套网关配置，见 `apps/api/src/config.ts`）。
 - P4 的 Embeddings 调用建议收敛到同一工厂，避免两套配置。
 - 不兼容时在工厂内加适配层，**不向边界外扩散**。
 

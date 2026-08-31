@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | ⬜ 未开始 |
+| 状态 | ✅ 已完成（2026-08-31，提交 db9b6d0 + 审查修复，见实施记录） |
 | 预估 | 10h |
 | 前置 | P2（契约）、P3（数据层） |
 | 被依赖 | P5（需要已摄取数据）、P6 文档栏 |
@@ -73,7 +73,35 @@ apps/api/src/ingest/      # 摄取管线：切分 + 向量化（LangChain 边界
 
 ## 完成标准
 
-- [ ] 合法上传 → 200 且 `ready`；chunks 行数 = 切片数
-- [ ] 三类违规（超限/错类型/网关故障）均落明确结果
-- [ ] 列表、删除行为符合契约；双库无残留
-- [ ] `langchain` 相关 import 未出现在 `documents/` 模块
+- [x] 合法上传 → 200 且 `ready`；chunks 行数 = 切片数
+- [x] 三类违规（超限/错类型/网关故障）均落明确结果
+- [x] 列表、删除行为符合契约；双库无残留
+- [x] `langchain` 相关 import 未出现在 `documents/` 模块
+
+## 实施记录
+
+### 主要落地（提交 db9b6d0）
+
+- **P4-1 上传校验**：multer 选项由 `DocumentsModule` 经 `MulterModule.registerAsync` 按配置注册（`buildUploadOptions`），`FileInterceptor` 不再传第二参；扩展名白名单（`.md`/`.txt`）+ MIME 兼容校验（`text/*`、空、`application/octet-stream` 放行，与文本冲突的 MIME 拒绝）；`UploadSizeFilter` 把 multer 原生 413 统一为 400。
+- **P4-2/3/4 同步摄取编排**：`DocumentsService.ingestUpload` 首步即建 `status='failed'` 行，成功收尾才改 `ready`；写入顺序固定 PG → Mongo → 摄取（ADR-0005）。
+- **P4-5 切分**：`ingest/text-splitter.ts` 包 `RecursiveCharacterTextSplitter.fromLanguage('markdown')`；`text-splitter.spec.ts` 4 个用例覆盖空文档、单片、字符级递归（数量/重叠/无丢失可断言）、Markdown 结构优先。
+- **P4-6 向量化**：`ingest/embeddings-client.ts` 自建小并发池（批 16、并发 4）替代 `embedDocuments` 的全并发 `Promise.all`；维度校验（`EMBEDDING_DIM`）落 `EmbeddingDimensionError`；配置缺失 fail-fast（`EmbeddingConfigError`）。Embedding 网关配置独立于 LLM 网关（`EMBED_BASE_URL / EMBED_API_KEY / EMBED_MODEL`，两服务可能分开部署）。
+- **P4-7 超时栏**：全流程 `Promise.race` 包 `INGEST_TIMEOUT_MS`；AbortSignal 贯穿管线各步；输掉的分支 `pipeline.catch(() => undefined)` 防 unhandled rejection；`finally clearTimeout`。
+- **P4-8 列表**：`select` 只取契约四字段，不暴露 `user_id`，不触碰 embedding 列。
+- **P4-9 删除**：PG 行删除（chunks 级联）+ Mongo 正文删除，均无条件执行 → 幂等。
+- **P4-10 失败路径**：失败/超时清理集中 `cleanupFailed`（chunks + Mongo 正文尽力删除，各自容错记日志）；`IngestTimeoutError` → 504，其余 → 500，消息带原因。
+
+### 审查修复（2026-08-31，NestJS 最佳实践走查）
+
+- `MONGO_URL` 未配置时启动即 fail-fast（对齐 `DATABASE_URL` 的处理），不再静默空串。
+- `main.ts` 增加 `app.enableShutdownHooks()`，SIGTERM 时关闭 PG/Mongo 连接。
+- 新增 `AppConfigProviderModule` 集中注册 `APP_CONFIG`，移除三个模块的重复 provide。
+- `@Param('id', ParseUUIDPipe)` 替代 service 内手写 UUID 正则。
+- 删除 `DocumentEntity.chunks` 未使用的 `cascade: true`。
+
+### 已知限制 / 遗留
+
+- `file.buffer.toString('utf8')`：UTF-16 等非 UTF-8 编码的 `.txt` 会静默乱码。单用户内部工具可接受；多编码支持待需要时再加。
+- `DocumentsService` 的编排逻辑（超时 race、失败清理、双库删除）暂无单测，建议随 P5 一并补。
+- 无 rate limiting / helmet / CORS：ADR-0002 单用户前提下推迟，认证接入时一起补。
+- P4 完成时 `apps/api/test/`（e2e 脚手架）被删除，e2e 待 P5 端点成型后重建。
