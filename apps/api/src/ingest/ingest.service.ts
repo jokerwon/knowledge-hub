@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
-import { ChunkEntity } from '../database/entities/chunk.entity';
+import { ChunkEntity } from '../documents/entities/chunk.entity';
 import { APP_CONFIG, type AppConfig } from '../config';
 import { embedTexts } from './embeddings-client';
 import { IngestTimeoutError } from './errors';

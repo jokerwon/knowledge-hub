@@ -6,7 +6,10 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { EMBEDDING_DIM, vectorTransformer } from '../vector-transformer';
+import {
+  EMBEDDING_DIM,
+  vectorTransformer,
+} from '../../database/vector-transformer';
 import { DocumentEntity } from './document.entity';
 
 @Entity('chunks')

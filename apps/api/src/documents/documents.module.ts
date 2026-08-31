@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChunkEntity } from '../database/entities/chunk.entity';
-import { DocumentEntity } from '../database/entities/document.entity';
+import { ChunkEntity } from './entities/chunk.entity';
+import { DocumentEntity } from './entities/document.entity';
 import {
   DocumentContent,
   DocumentContentSchema,
-} from '../database/schemas/document-content.schema';
+} from './schemas/document-content.schema';
 import { APP_CONFIG, AppConfigProviderModule } from '../config';
 import { IngestModule } from '../ingest/ingest.module';
 import { DocumentsController } from './documents.controller';

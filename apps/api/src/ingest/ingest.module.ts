@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ChunkEntity } from '../database/entities/chunk.entity';
+import { ChunkEntity } from '../documents/entities/chunk.entity';
 import { AppConfigProviderModule } from '../config';
 import { IngestService } from './ingest.service';
 

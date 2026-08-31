@@ -1,6 +1,8 @@
 import * as dotenv from 'dotenv';
 import * as path from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
+import { DocumentEntity } from '../documents/entities/document.entity';
+import { ChunkEntity } from '../documents/entities/chunk.entity';
 
 // 加载 monorepo 根的 .env；dotenv 默认不覆盖已存在的环境变量。
 // process.cwd() 在 pnpm 脚本里指向 apps/api；上溯 2 级到仓库根。
@@ -27,7 +29,8 @@ export function buildDataSourceOptions(): DataSourceOptions {
   return {
     type: 'postgres',
     url: databaseUrl,
-    entities: [path.join(databaseDir, 'entities', `*.${ext}`)],
+    // 实体归领域目录（documents/entities 等），显式注册；migrations 集中在本目录，仍按 glob 扫描。
+    entities: [DocumentEntity, ChunkEntity],
     migrations: [path.join(databaseDir, 'migrations', `*.${ext}`)],
     synchronize: false,
     migrationsRun: false, // 不在启动时自动跑 migration；显式 pnpm migration:run。

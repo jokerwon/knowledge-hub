@@ -13,10 +13,10 @@ import { randomUUID } from 'node:crypto';
 import type { Model } from 'mongoose';
 import type { Repository } from 'typeorm';
 import { APP_CONFIG, CURRENT_USER_ID, type AppConfig } from '../config';
-import { ChunkEntity } from '../database/entities/chunk.entity';
-import { DocumentEntity } from '../database/entities/document.entity';
-import { DocumentContent } from '../database/schemas/document-content.schema';
-import type { DocumentContentDoc } from '../database/schemas/document-content.schema';
+import { ChunkEntity } from './entities/chunk.entity';
+import { DocumentEntity } from './entities/document.entity';
+import { DocumentContent } from './schemas/document-content.schema';
+import type { DocumentContentDoc } from './schemas/document-content.schema';
 import { IngestTimeoutError } from '../ingest/errors';
 import { IngestService } from '../ingest/ingest.service';
 
