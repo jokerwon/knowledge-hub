@@ -1,5 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
 import * as path from 'node:path';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { DEFAULT_MAX_UPLOAD_BYTES } from '@kh/shared';
@@ -16,11 +15,11 @@ const isAllowedMime = (mime: string): boolean =>
   mime.startsWith('text/') ||
   mime === 'application/octet-stream';
 
-// 由配置生成 multer 选项：fileSize 跟随 UPLOAD_MAX_BYTES。
-export function buildUploadOptions(cfg: ConfigService): MulterOptions {
+// multer 选项：fileSize 跟随 UPLOAD_MAX_BYTES。
+export function buildUploadOptions(): MulterOptions {
   return {
     limits: {
-      fileSize: cfgInt(cfg, 'UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
+      fileSize: cfgInt('UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
     },
     fileFilter: (_req, file, callback) => {
       const ext = path.extname(file.originalname).toLowerCase();

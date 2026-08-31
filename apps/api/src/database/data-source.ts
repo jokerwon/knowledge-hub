@@ -1,12 +1,7 @@
-import * as dotenv from 'dotenv';
+import '../config'; // 副作用：加载根 .env（typeorm CLI 不经 Nest，直接到本文件）
 import * as path from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
 import { DocumentEntity } from '../documents/entities/document.entity';
-
-// 加载 monorepo 根的 .env；dotenv 默认不覆盖已存在的环境变量。
-// process.cwd() 在 pnpm 脚本里指向 apps/api；上溯 2 级到仓库根。
-const ROOT_ENV = path.resolve(process.cwd(), '..', '..', '.env');
-dotenv.config({ path: ROOT_ENV });
 
 const bool = (v: string | undefined, fallback: boolean): boolean => {
   if (!v) return fallback;

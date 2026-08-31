@@ -1,14 +1,10 @@
 #!/usr/bin/env node
-// 双库冒烟：验证 TypeORM migration 状态 + documents 表 + Mongoose document_contents 唯一索引。
+// PG 冒烟：migration 状态 + documents 表结构（含 content 列）+ 写入/读取/删除往返。
 // 运行方式（从 apps/api 目录）：
-//   cross-env TS_NODE_PROJECT=tsconfig.cli.json node --require ts-node/register --require tsconfig-paths/register scripts/smoke-db.ts
-import * as dotenv from 'dotenv';
-import * as path from 'node:path';
-dotenv.config({ path: path.resolve(process.cwd(), '..', '..', '.env') });
+//   TS_NODE_PROJECT=tsconfig.cli.json node --require ts-node/register scripts/smoke-db.ts
+import '../src/config';
 
-import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import mongoose from 'mongoose';
 import { Client } from 'pg';
 import type { QueryResult } from 'pg';
 
@@ -27,9 +23,7 @@ type Row = Record<string, any>;
 
 async function main() {
   const PG_URL = process.env.DATABASE_URL;
-  const MONGO_URL = process.env.MONGO_URL;
   if (!PG_URL) fail('DATABASE_URL 未配置');
-  if (!MONGO_URL) fail('MONGO_URL 未配置');
 
   const pg = new Client({
     connectionString: PG_URL,
@@ -51,57 +45,34 @@ async function main() {
       applied.rows.some((r) => r.name.startsWith('CreateDocuments')),
       'CreateDocuments migration 已应用',
     );
-    check(
-      applied.rows.some((r) => r.name.startsWith('DropChunks')),
-      'DropChunks migration 已应用',
-    );
 
-    // ---- 2. 表结构：仅 documents，chunks 已删 ----
-    const tables: QueryResult<Row> = await pg.query(`
-      SELECT table_name FROM information_schema.tables
-      WHERE table_schema='public' AND table_name IN ('documents','chunks')
+    // ---- 2. documents 表结构：六列齐全（含 content）----
+    const cols: QueryResult<Row> = await pg.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='documents'
     `);
-    check(tables.rows.length === 1, 'documents 存在且 chunks 已删除');
-
-    // ---- 3. Mongoose：document_contents 唯一索引 ----
-    await mongoose.connect(MONGO_URL!);
-    console.log('[TEST] MongoDB connected');
-    const schema = new mongoose.Schema(
-      {
-        document_id: { type: String, required: true, unique: true },
-        content: { type: String, required: true },
-      },
-      { collection: 'document_contents', versionKey: false },
+    const names = cols.rows.map((r) => r.column_name);
+    check(
+      ['id', 'title', 'content', 'status', 'user_id', 'created_at'].every((c) =>
+        names.includes(c),
+      ),
+      'documents 表结构完整（含 content 列）',
     );
-    const Model = mongoose.model('DocumentContent_Smoke', schema);
-    await Model.init(); // 确保 unique 索引建好
 
-    const docId = randomUUID();
-    await Model.deleteMany({ document_id: docId });
+    // ---- 3. 写入/读取/删除往返 ----
+    const id = randomUUID();
+    await pg.query(
+      `INSERT INTO documents (id, title, content, status) VALUES ($1, $2, $3, 'ready')`,
+      [id, 'smoke', '# Smoke\nhello'],
+    );
+    const got: QueryResult<Row> = await pg.query(
+      `SELECT content FROM documents WHERE id = $1`,
+      [id],
+    );
+    check(got.rows[0]?.content === '# Smoke\nhello', 'content 写入并可读取');
+    await pg.query(`DELETE FROM documents WHERE id = $1`, [id]);
 
-    await Model.create({ document_id: docId, content: '# Smoke\nhello' });
-    let dupFailed = false;
-    try {
-      await Model.create({ document_id: docId, content: 'duplicate' });
-    } catch {
-      dupFailed = true;
-    }
-    check(dupFailed, 'document_contents 唯一索引生效（重复 document_id 抛错）');
-
-    const got = await Model.findOne({ document_id: docId });
-    check(got?.content.startsWith('# Smoke'), 'content 可读取');
-
-    await Model.deleteMany({ document_id: docId });
-    await mongoose.disconnect();
-
-    console.log('\n[OK] 双库冒烟全部通过');
-  } catch (e) {
-    try {
-      await mongoose.disconnect();
-    } catch {
-      // 未连接时忽略
-    }
-    throw e;
+    console.log('\n[OK] PG 冒烟全部通过');
   } finally {
     await pg.end();
   }

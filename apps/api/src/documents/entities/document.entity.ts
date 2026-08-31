@@ -18,6 +18,9 @@ export class DocumentEntity {
   title!: string;
 
   @Column({ type: 'text' })
+  content!: string;
+
+  @Column({ type: 'text' })
   status!: DocumentStatus;
 
   // 多用户演进预留：当前为 NULL，未来补认证后回填。
