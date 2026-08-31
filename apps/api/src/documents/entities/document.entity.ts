@@ -6,9 +6,8 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
+import type { DocumentStatus } from '@kh/shared';
 import { ChunkEntity } from './chunk.entity';
-
-export type DocumentStatus = 'ready' | 'failed';
 
 @Entity('documents')
 // CHECK 约束与 migration 保持一致；TypeORM 据此判断无需改动。

@@ -9,7 +9,6 @@ const defaultConfig = {
   chunkOverlap: 50,
   ingestTimeoutMs: 60000,
   embeddingDim: 768,
-  llm: { baseUrl: '', apiKey: '', chatModel: '' },
   embed: { baseUrl: '', apiKey: '', model: '' },
 } satisfies AppConfig;
 

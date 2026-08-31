@@ -27,12 +27,6 @@ export interface AppConfig {
   chunkOverlap: number;
   ingestTimeoutMs: number;
   embeddingDim: number;
-  llm: {
-    baseUrl: string;
-    apiKey: string;
-    chatModel: string;
-  };
-  // embedding 与 LLM 网关分开定义：两者的接口地址与模型可能部署在不同服务。
   embed: {
     baseUrl: string;
     apiKey: string;
@@ -56,11 +50,6 @@ export const appConfigProvider: Provider = {
       chunkOverlap: int('CHUNK_OVERLAP', DEFAULT_CHUNK_OVERLAP),
       ingestTimeoutMs: int('INGEST_TIMEOUT_MS', DEFAULT_INGEST_TIMEOUT_MS),
       embeddingDim: int('EMBEDDING_DIM', DEFAULT_EMBEDDING_DIM),
-      llm: {
-        baseUrl: cfg.get<string>('LLM_BASE_URL') ?? '',
-        apiKey: cfg.get<string>('LLM_API_KEY') ?? '',
-        chatModel: cfg.get<string>('LLM_CHAT_MODEL') ?? '',
-      },
       embed: {
         baseUrl: cfg.get<string>('EMBED_BASE_URL') ?? '',
         apiKey: cfg.get<string>('EMBED_API_KEY') ?? '',

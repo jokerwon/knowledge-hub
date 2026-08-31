@@ -3,7 +3,6 @@
 
 export const APP_NAME = 'knowledge-hub';
 
-export const DEFAULT_RETRIEVAL_TOP_K = 5;
 export const DEFAULT_MAX_UPLOAD_BYTES = 2_097_152; // 2 MiB
 export const DEFAULT_CHUNK_SIZE = 500;
 export const DEFAULT_CHUNK_OVERLAP = 50;
