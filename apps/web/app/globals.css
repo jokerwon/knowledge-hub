@@ -1,9 +1,333 @@
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Linear design system — see DESIGN.md.
+ * Dark-only marketing canvas (#010102). Light mode is intentionally not shipped.
+ */
+
+@theme inline {
+  /* shadcn semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: var(--font-geist-sans), "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Linear palette — first-class utilities (bg-surface-1, text-ink-subtle, border-hairline …) */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-hairline-tertiary: var(--hairline-tertiary);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-focus: var(--primary-focus);
+  --color-on-primary: var(--on-primary);
+  --color-inverse-canvas: var(--inverse-canvas);
+  --color-inverse-surface-1: var(--inverse-surface-1);
+  --color-inverse-surface-2: var(--inverse-surface-2);
+  --color-inverse-ink: var(--inverse-ink);
+  --color-brand-secure: var(--brand-secure);
+  --color-success: var(--success);
+
+  /* Radius — Linear scale: xs 4 · sm 6 · md 8 (buttons/inputs) · lg 12 (cards) · xl 16 (screenshot panels) · xxl 24 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+:root {
+  color-scheme: dark;
+
+  /* Surface ladder: canvas → surface-4 carries hierarchy without shadow */
+  --canvas: #010102;
+  --surface-1: #0f1011;
+  --surface-2: #141516;
+  --surface-3: #18191a;
+  --surface-4: #191a1b;
+  --hairline: #23252a;
+  --hairline-strong: #34343a;
+  --hairline-tertiary: #3e3e44;
+
+  /* Ink scale */
+  --ink: #f7f8f8;
+  --ink-muted: #d0d6e0;
+  --ink-subtle: #8a8f98;
+  --ink-tertiary: #62666d;
+
+  /* Lavender accent — scarce: brand mark, primary CTA, focus ring, link emphasis */
+  --primary: #5e6ad2;
+  --primary-hover: #828fff;
+  --primary-focus: #5e69d1;
+  --on-primary: #ffffff;
+  --brand-secure: #7a7fad;
+
+  /* Inverse (white pill CTAs on section openers) */
+  --inverse-canvas: #ffffff;
+  --inverse-surface-1: #f5f6f6;
+  --inverse-surface-2: #f6f7f7;
+  --inverse-ink: #000000;
+
+  /* Semantic — success is the only semantic color on the marketing canvas */
+  --success: #27a644;
+
+  /* Top-edge sheen on lifted panels (theme-aware) */
+  --edge-highlight: rgb(255 255 255 / 0.04);
+
+  /* shadcn semantics mapped onto Linear tokens */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-3);
+  --popover-foreground: var(--ink);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--surface-1);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-subtle);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  /* Form-error red is not specified in DESIGN.md; kept for a11y, never used on marketing chrome */
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--primary-focus);
+  --chart-1: var(--primary);
+  --chart-2: var(--primary-hover);
+  --chart-3: var(--brand-secure);
+  --chart-4: var(--ink-subtle);
+  --chart-5: var(--ink-tertiary);
+  --radius: 12px;
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--primary-focus);
+}
+
+/*
+ * Light theme — opt-in via the nav toggle (persisted in localStorage).
+ * DESIGN.md documents dark only; this ladder mirrors it: white canvas,
+ * progressively cooler-gray lifts, near-black ink, same scarce lavender.
+ * Only raw tokens are overridden — every shadcn semantic derives via var().
+ */
+.light {
+  color-scheme: light;
+
+  /* Surface ladder inverted: white canvas, gray lifts */
+  --canvas: #ffffff;
+  --surface-1: #f5f6f6;
+  --surface-2: #edeeee;
+  --surface-3: #e6e7e9;
+  --surface-4: #e0e1e4;
+  --hairline: #e5e6ea;
+  --hairline-strong: #d1d2d6;
+  --hairline-tertiary: #c4c5c9;
+
+  /* Ink scale */
+  --ink: #18191a;
+  --ink-muted: #3f434b;
+  --ink-subtle: #6f747d;
+  --ink-tertiary: #8a8f98;
+
+  /* Same lavender; hover/pressed darken (light-UI convention) instead of lift */
+  --primary-hover: #4a54cb;
+  --primary-focus: #3d46a5;
+
+  /* Inverse flips to the dark ladder */
+  --inverse-canvas: #18191a;
+  --inverse-surface-1: #26272a;
+  --inverse-surface-2: #2e3034;
+  --inverse-ink: #f7f8f8;
+
+  --edge-highlight: rgb(255 255 255 / 0.85);
+}
+
+/*
+ * Typography — Linear scale. Display cuts track negative (−3px at 80px);
+ * eyebrow tracks slightly positive. Display sizes step down on narrow
+ * viewports (display-xl: 80 → 56 @768 → 36 @base, per DESIGN.md responsive).
+ */
+@utility text-display-xl {
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -1.2px;
+
+  @media (width >= 48rem) {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    letter-spacing: -1.8px;
+  }
+
+  @media (width >= 64rem) {
+    font-size: 5rem;
+    line-height: 1.05;
+    letter-spacing: -3px;
+  }
+}
+
+@utility text-display-lg {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+
+  @media (width >= 48rem) {
+    font-size: 2.5rem;
+    letter-spacing: -1px;
+  }
+
+  @media (width >= 64rem) {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    letter-spacing: -1.8px;
+  }
+}
+
+@utility text-display-md {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+
+  @media (width >= 48rem) {
+    font-size: 2.5rem;
+    line-height: 1.15;
+    letter-spacing: -1px;
+  }
+}
+
+@utility text-headline {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+
+  @media (width >= 48rem) {
+    font-size: 1.75rem;
+    letter-spacing: -0.6px;
+  }
+}
+
+@utility text-card-title {
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+}
+
+@utility text-subhead {
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.2px;
+
+  @media (width >= 48rem) {
+    font-size: 1.25rem;
+  }
+}
+
+@utility text-body-lg {
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -0.1px;
+}
+
+@utility text-body {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -0.05px;
+}
+
+@utility text-body-sm {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+@utility text-caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+@utility text-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.4px;
+}
+
+/* Faint top-edge highlight on lifted panels — the only "depth" beyond the surface ladder */
+@utility panel-highlight {
+  box-shadow: inset 0 1px 0 0 var(--edge-highlight);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 40%, transparent);
+    color: var(--on-primary);
+  }
 }
