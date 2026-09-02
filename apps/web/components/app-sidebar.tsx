@@ -14,9 +14,21 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { FileTextIcon, GalleryVerticalEndIcon } from "lucide-react"
-// 真实导航:唯一入口是文档管理页;无假数据、无占位链接。
-const navMain = [
+import {
+  FileTextIcon,
+  GalleryVerticalEndIcon,
+  LayoutDashboardIcon,
+} from "lucide-react"
+// 真实导航:仪表盘独立成组,文档管理归入「内容」;无假数据、无占位链接。
+const navOverview = [
+  {
+    title: "仪表盘",
+    url: "/dashboard",
+    icon: LayoutDashboardIcon,
+  },
+]
+
+const navContent = [
   {
     title: "文档",
     url: "/documents",
@@ -25,14 +37,12 @@ const navMain = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
-
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/documents" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <GalleryVerticalEndIcon className="size-4" />
               </div>
@@ -47,25 +57,44 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>内容</SidebarGroupLabel>
-          <SidebarMenu>
-            {navMain.map((item) => (
-              <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton
-                  isActive={pathname === item.url}
-                  tooltip={item.title}
-                  render={<Link href={item.url} />}
-                >
-                  <item.icon />
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        <NavGroup items={navOverview} />
+        <NavGroup label="内容" items={navContent} />
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function NavGroup({
+  label,
+  items,
+}: {
+  label?: string
+  items: Array<{
+    title: string
+    url: string
+    icon: React.ComponentType<{ className?: string }>
+  }>
+}) {
+  const pathname = usePathname()
+
+  return (
+    <SidebarGroup>
+      {label ? <SidebarGroupLabel>{label}</SidebarGroupLabel> : null}
+      <SidebarMenu>
+        {items.map((item) => (
+          <SidebarMenuItem key={item.url}>
+            <SidebarMenuButton
+              isActive={pathname === item.url}
+              tooltip={item.title}
+              render={<Link href={item.url} />}
+            >
+              <item.icon />
+              <span>{item.title}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
   )
 }

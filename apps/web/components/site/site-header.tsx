@@ -16,6 +16,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 // 路由 → 面包屑标题,与 app-sidebar 的 navMain 对应;新增页面时在此登记。
 const breadcrumbTitles: Record<string, string> = {
+  "/dashboard": "仪表盘",
   "/documents": "文档",
 };
 

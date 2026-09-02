@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// 知识库目前只有一块真实内容（文档管理），首页直接让位。
+// 仪表盘（/dashboard）是应用首页;文档管理在 /documents。
 export default function Home() {
-  redirect("/documents");
+  redirect("/dashboard");
 }
