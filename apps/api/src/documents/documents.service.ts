@@ -49,9 +49,11 @@ export class DocumentsService {
     }));
   }
 
+  // 软删除：softDelete 写 deleted_at，find() 默认排除已删除行。
+  // 回收站/恢复为后续工单；v1 误删靠 SQL 手工恢复。
   async remove(id: string): Promise<void> {
-    await this.documentsRepo.delete(id);
-    this.logger.log(`删除文档 doc=${id}`);
+    await this.documentsRepo.softDelete(id);
+    this.logger.log(`删除文档（软删除）doc=${id}`);
   }
 }
 

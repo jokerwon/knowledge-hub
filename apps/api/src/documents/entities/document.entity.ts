@@ -2,6 +2,7 @@ import {
   Check,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryColumn,
 } from 'typeorm';
@@ -25,4 +26,9 @@ export class DocumentEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
+
+  // 软删除：repo.softDelete() 写入时间戳，find() 默认排除已删除行；
+  // 列由 migration 显式创建（synchronize: false）。
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz' })
+  deletedAt!: Date | null;
 }

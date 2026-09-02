@@ -6,7 +6,8 @@
 
 /*
  * Linear design system — see DESIGN.md.
- * Dark-only marketing canvas (#010102). Light mode is intentionally not shipped.
+ * Dark canvas (#010102) is the default anchor; light is an opt-in mirror
+ * (.light class, toggled from the header and applied before first paint).
  */
 
 @theme inline {

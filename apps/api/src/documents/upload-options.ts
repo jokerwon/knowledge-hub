@@ -18,6 +18,9 @@ const isAllowedMime = (mime: string): boolean =>
 // multer 选项：fileSize 跟随 UPLOAD_MAX_BYTES。
 export function buildUploadOptions(): MulterOptions {
   return {
+    // busboy 默认按 latin1 解码 multipart 文件名参数，非 ASCII 文件名会存成乱码
+    // （如「验收文档」→「éªæ¶ææ¡£」）；本系统的客户端一律发送 UTF-8 文件名。
+    defParamCharset: 'utf8',
     limits: {
       fileSize: cfgInt('UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
     },
