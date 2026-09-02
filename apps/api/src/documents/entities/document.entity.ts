@@ -23,10 +23,6 @@ export class DocumentEntity {
   @Column({ type: 'text' })
   status!: DocumentStatus;
 
-  // 多用户演进预留：当前为 NULL，未来补认证后回填。
-  @Column({ name: 'user_id', type: 'uuid', nullable: true })
-  userId!: string | null;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

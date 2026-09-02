@@ -46,14 +46,14 @@ async function main() {
       'CreateDocuments migration 已应用',
     );
 
-    // ---- 2. documents 表结构：六列齐全（含 content）----
+    // ---- 2. documents 表结构：五列齐全（含 content）----
     const cols: QueryResult<Row> = await pg.query(`
       SELECT column_name FROM information_schema.columns
       WHERE table_schema='public' AND table_name='documents'
     `);
     const names = cols.rows.map((r) => r.column_name);
     check(
-      ['id', 'title', 'content', 'status', 'user_id', 'created_at'].every((c) =>
+      ['id', 'title', 'content', 'status', 'created_at'].every((c) =>
         names.includes(c),
       ),
       'documents 表结构完整（含 content 列）',

@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { DocumentDto } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
 import type { Repository } from 'typeorm';
-import { CURRENT_USER_ID } from '../config';
 import { DocumentEntity } from './entities/document.entity';
 
 // 上传校验与摄取编排集中在此。单库写入：一次 INSERT 即完成摄取，
@@ -26,7 +25,6 @@ export class DocumentsService {
       title,
       content,
       status: 'ready',
-      userId: CURRENT_USER_ID,
     });
     this.logger.log(`摄取成功 doc=${document.id} title="${title}"`);
     return {
@@ -37,7 +35,7 @@ export class DocumentsService {
     };
   }
 
-  // 不暴露 user_id / content（契约仅 id/title/status/created_at）。
+  // 不暴露 content（契约仅 id/title/status/created_at）。
   async list(): Promise<DocumentDto[]> {
     const rows = await this.documentsRepo.find({
       select: { id: true, title: true, status: true, createdAt: true },
