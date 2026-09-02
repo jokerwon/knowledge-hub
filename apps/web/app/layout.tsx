@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import "./globals.css";
 
 // Geist Sans / Geist Mono (self-hosted) — the DESIGN.md-endorsed substitutes
@@ -38,7 +42,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
-        {children}
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <SiteHeader />
+            <div className="flex flex-1 flex-col gap-6 p-6">{children}</div>
+          </SidebarInset>
+        </SidebarProvider>
       </body>
     </html>
   );

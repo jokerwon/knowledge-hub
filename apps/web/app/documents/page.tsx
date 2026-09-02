@@ -1,16 +1,6 @@
 import type { DocumentDto } from "@kh/shared";
 import { FileTextIcon } from "lucide-react";
 
-import { AppSidebar } from "@/components/app-sidebar";
-import { ThemeToggle } from "@/components/site/theme-toggle";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import {
   Empty,
   EmptyContent,
@@ -19,12 +9,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { fetchDocuments } from "@/lib/api-server";
 import { DeleteDocumentButton } from "./delete-document-button";
 import { RefreshButton } from "./refresh-button";
@@ -48,56 +32,28 @@ export default async function DocumentsPage() {
   const documents = await fetchDocuments().catch(() => null);
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/">Knowledge Hub</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>文档</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto flex items-center gap-2 px-4">
-            <ThemeToggle />
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-baseline gap-3">
-              <h1 className="text-headline">文档</h1>
-              {documents !== null && (
-                <p className="text-caption text-ink-subtle">
-                  共 {documents.length} 篇
-                </p>
-              )}
-            </div>
-            <div className="ml-auto">
-              <UploadDialog />
-            </div>
-          </div>
-          {documents === null ? (
-            <ListErrorPanel />
-          ) : documents.length === 0 ? (
-            <DocumentsEmpty />
-          ) : (
-            <DocumentList documents={documents} />
+    <>
+      <div className="flex items-center gap-4">
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-headline">文档</h1>
+          {documents !== null && (
+            <p className="text-caption text-ink-subtle">
+              共 {documents.length} 篇
+            </p>
           )}
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+        <div className="ml-auto">
+          <UploadDialog />
+        </div>
+      </div>
+      {documents === null ? (
+        <ListErrorPanel />
+      ) : documents.length === 0 ? (
+        <DocumentsEmpty />
+      ) : (
+        <DocumentList documents={documents} />
+      )}
+    </>
   );
 }
 
