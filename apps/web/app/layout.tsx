@@ -3,9 +3,6 @@ import Script from "next/script";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import "./globals.css";
 
 // Geist Sans / Geist Mono (self-hosted) — the DESIGN.md-endorsed substitutes
@@ -29,6 +26,8 @@ export const viewport: Viewport = {
 // Dark is the default; the ThemeToggle persists "light" | "dark".
 const themeInitScript = `try{if(localStorage.getItem("theme")==="light"){document.documentElement.classList.remove("dark");document.documentElement.classList.add("light")}}catch(e){}`;
 
+// 根布局只保留 html 骨架；应用壳（侧边栏/顶栏/鉴权门）在 (app) 组布局，
+// 登录页 (app/login) 因此天然不带侧边栏。
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -42,13 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <SiteHeader />
-            <div className="flex flex-1 flex-col gap-6 p-6">{children}</div>
-          </SidebarInset>
-        </SidebarProvider>
+        {children}
       </body>
     </html>
   );

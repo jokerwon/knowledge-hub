@@ -1,11 +1,12 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -13,30 +14,30 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import {
-  FileTextIcon,
-  GalleryVerticalEndIcon,
-  LayoutDashboardIcon,
-} from "lucide-react"
+} from '@/components/ui/sidebar'
+import { FileTextIcon, GalleryVerticalEndIcon, LayoutDashboardIcon } from 'lucide-react'
+import { NavUser } from './site/nav-user'
+
 // 真实导航:仪表盘独立成组,文档管理归入「内容」;无假数据、无占位链接。
+// 账号操作(改密/登出)在 footer 的 NavUser 弹出层菜单里。
 const navOverview = [
   {
-    title: "仪表盘",
-    url: "/dashboard",
+    title: '仪表盘',
+    url: '/dashboard',
     icon: LayoutDashboardIcon,
   },
 ]
 
 const navContent = [
   {
-    title: "文档",
-    url: "/documents",
+    title: '文档',
+    url: '/documents',
     icon: FileTextIcon,
   },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+// username 由 (app) 布局过完鉴权门后传入。
+export function AppSidebar({ username, ...props }: React.ComponentProps<typeof Sidebar> & { username: string }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -48,9 +49,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Knowledge Hub</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  Your team&apos;s knowledge, in order
-                </span>
+                <span className="truncate text-xs text-muted-foreground">Your team&apos;s knowledge, in order</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -60,6 +59,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavGroup items={navOverview} />
         <NavGroup label="内容" items={navContent} />
       </SidebarContent>
+      <SidebarFooter>
+        <NavUser username={username} />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
@@ -84,11 +86,7 @@ function NavGroup({
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.url}>
-            <SidebarMenuButton
-              isActive={pathname === item.url}
-              tooltip={item.title}
-              render={<Link href={item.url} />}
-            >
+            <SidebarMenuButton isActive={pathname === item.url} tooltip={item.title} render={<Link href={item.url} />}>
               <item.icon />
               <span>{item.title}</span>
             </SidebarMenuButton>

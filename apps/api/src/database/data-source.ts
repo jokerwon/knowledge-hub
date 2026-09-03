@@ -2,6 +2,7 @@ import '../config'; // 副作用：加载根 .env（typeorm CLI 不经 Nest，�
 import * as path from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
 import { DocumentEntity } from '../documents/entities/document.entity';
+import { UserEntity } from '../users/entities/user.entity';
 
 const bool = (v: string | undefined, fallback: boolean): boolean => {
   if (!v) return fallback;
@@ -24,7 +25,7 @@ export function buildDataSourceOptions(): DataSourceOptions {
     type: 'postgres',
     url: databaseUrl,
     // 实体归领域目录（documents/entities 等），显式注册；migrations 集中在本目录，仍按 glob 扫描。
-    entities: [DocumentEntity],
+    entities: [DocumentEntity, UserEntity],
     migrations: [path.join(databaseDir, 'migrations', `*.${ext}`)],
     synchronize: false,
     migrationsRun: false, // 不在启动时自动跑 migration；显式 pnpm migration:run。

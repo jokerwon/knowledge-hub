@@ -136,7 +136,9 @@
   /* Form-error red is not specified in DESIGN.md; kept for a11y, never used on marketing chrome */
   --destructive: oklch(0.704 0.191 22.216);
   --border: var(--hairline);
-  --input: var(--hairline);
+  /* 输入控件边框：hairline 是面板分隔线（深色 #23252a，1px 视觉不可见），
+     交互控件用 hairline-strong 保证不聚焦时边界清晰（DESIGN.md text-input 规范） */
+  --input: var(--hairline-strong);
   --ring: var(--primary-focus);
   --chart-1: var(--primary);
   --chart-2: var(--primary-hover);
