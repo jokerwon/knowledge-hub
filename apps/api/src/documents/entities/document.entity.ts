@@ -10,7 +10,7 @@ import type { DocumentStatus } from '@kh/shared';
 
 @Entity('documents')
 // CHECK 约束与 migration 保持一致；TypeORM 据此判断无需改动。
-@Check('documents_status_check', `status IN ('ready','failed')`)
+@Check('documents_status_check', `status IN ('processing','ready','failed')`)
 export class DocumentEntity {
   @PrimaryColumn({ type: 'uuid' })
   id!: string;
@@ -23,6 +23,14 @@ export class DocumentEntity {
 
   @Column({ type: 'text' })
   status!: DocumentStatus;
+
+  // failed 时的原因文案；processing / ready 为 null。
+  @Column({ name: 'failure_reason', type: 'text', nullable: true })
+  failureReason!: string | null;
+
+  // PDF 提交 MinerU 后的批次号（batch_id）；md/txt 与未提交的 PDF 为 null。
+  @Column({ name: 'mineru_task_id', type: 'text', nullable: true })
+  mineruTaskId!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

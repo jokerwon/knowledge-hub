@@ -51,28 +51,75 @@ const TEST_USER_ID = randomUUID();
 const TEST_USER_PASSWORD_HASH = hashSync(TEST_USER.password, 10);
 
 export async function resetData(): Promise<void> {
-  if (!pg) {
-    const url = process.env.TEST_DATABASE_URL;
-    if (!url) {
-      throw new Error('TEST_DATABASE_URL 未配置（见 test/e2e/setup-env.ts）');
-    }
-    // PG_SSL 语义与应用侧一致（fixtures.pgSsl），远程库要求 SSL 时两侧行为同步
-    pg = new Client({ connectionString: url, ssl: pgSsl() });
-    try {
-      await pg.connect();
-    } catch (err) {
-      pg = null;
-      throw new Error(
-        `无法连接测试库，请检查 TEST_DATABASE_URL（${url}）：${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
-  }
-  await pg.query('TRUNCATE TABLE documents, users');
-  await pg.query(
+  const client = await fixtureClient();
+  await client.query('TRUNCATE TABLE documents, users');
+  await client.query(
     'INSERT INTO users (id, username, password_hash, token_version) VALUES ($1, $2, $3, 0)',
     [TEST_USER_ID, TEST_USER.username, TEST_USER_PASSWORD_HASH],
+  );
+}
+
+// 夹具连接的惰性单例：resetData / documentRow / seedDocument 共用。
+async function fixtureClient(): Promise<Client> {
+  if (pg) return pg;
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url) {
+    throw new Error('TEST_DATABASE_URL 未配置（见 test/e2e/setup-env.ts）');
+  }
+  // PG_SSL 语义与应用侧一致（fixtures.pgSsl），远程库要求 SSL 时两侧行为同步
+  pg = new Client({ connectionString: url, ssl: pgSsl() });
+  try {
+    await pg.connect();
+  } catch (err) {
+    pg = null;
+    throw new Error(
+      `无法连接测试库，请检查 TEST_DATABASE_URL（${url}）：${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+  return pg;
+}
+
+// 夹具 SQL 读取单行文档（content 不在 HTTP 契约内，摄取回归与「删除后不复活」
+// 的断言落在存储列上——夹具直读是唯一可观察面）。
+export interface DocumentRow {
+  id: string;
+  title: string;
+  content: string;
+  status: string;
+  failure_reason: string | null;
+  mineru_task_id: string | null;
+  created_at: Date;
+  deleted_at: Date | null;
+}
+
+export async function documentRow(id: string): Promise<DocumentRow | null> {
+  const client = await fixtureClient();
+  const result = await client.query(
+    'SELECT id, title, content, status, failure_reason, mineru_task_id, created_at, deleted_at FROM documents WHERE id = $1',
+    [id],
+  );
+  return (result.rows[0] as DocumentRow | undefined) ?? null;
+}
+
+// 夹具播种 processing 行（启动恢复等场景需要在应用启动前就位的数据）。
+export async function seedProcessingDocument(row: {
+  id: string;
+  title: string;
+  mineruTaskId?: string | null;
+  createdAt?: Date;
+}): Promise<void> {
+  const client = await fixtureClient();
+  await client.query(
+    `INSERT INTO documents (id, title, content, status, failure_reason, mineru_task_id, created_at)
+     VALUES ($1, $2, '', 'processing', NULL, $3, $4)`,
+    [
+      row.id,
+      row.title,
+      row.mineruTaskId ?? null,
+      (row.createdAt ?? new Date()).toISOString(),
+    ],
   );
 }
 

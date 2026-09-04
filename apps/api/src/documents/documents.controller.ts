@@ -23,11 +23,12 @@ import { UploadSizeFilter } from './upload-size.filter';
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
 
-  // 同步摄取：响应即最终结果，200 表示 ready。
+  // 异步受理（ADR 0001）：202 = 已受理并进入 processing，不代表摄取完成；
+  // 收敛结果（ready/failed）经 GET /documents 轮询观察。
   // multer 选项（大小上限、扩展名白名单）在 DocumentsModule 经
   // MulterModule.registerAsync 注册为默认值，此处不再传第二参。
   @Post()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(FileInterceptor(UPLOAD_FIELD))
   async upload(
     @UploadedFile() file?: Express.Multer.File,
@@ -37,7 +38,7 @@ export class DocumentsController {
         '缺少 file 字段：请以 multipart 上传 .md / .txt 文件',
       );
     }
-    return this.documentsService.ingestUpload(file);
+    return this.documentsService.acceptUpload(file);
   }
 
   @Get()

@@ -11,6 +11,7 @@ import { buildDataSourceOptions } from '../../src/database/data-source';
 import { CreateDocuments1788090000000 } from '../../src/database/migrations/1788090000000-CreateDocuments';
 import { AddDeletedAt1788331342758 } from '../../src/database/migrations/1788331342758-AddDeletedAt';
 import { CreateUsers1788350000000 } from '../../src/database/migrations/1788350000000-CreateUsers';
+import { AddAsyncIngestion1788500000000 } from '../../src/database/migrations/1788500000000-AddAsyncIngestion';
 import { pgSsl } from './fixtures';
 
 // 迁移类显式注册（顺序 = 文件名时间戳序）：TypeORM 运行时按路径加载 .ts 迁移
@@ -20,6 +21,7 @@ const MIGRATIONS = [
   CreateDocuments1788090000000,
   AddDeletedAt1788331342758,
   CreateUsers1788350000000,
+  AddAsyncIngestion1788500000000,
 ];
 
 // 注册对账：新增 migration 忘记注册时，schema 缺列只会表现为遥远的用例失败；

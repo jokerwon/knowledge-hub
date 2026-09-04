@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentEntity } from './entities/document.entity';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
+import { IngestionService } from './ingestion.service';
 import { buildUploadOptions } from './upload-options';
 import { UploadSizeFilter } from './upload-size.filter';
 
@@ -14,6 +15,6 @@ import { UploadSizeFilter } from './upload-size.filter';
     MulterModule.register(buildUploadOptions()),
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, UploadSizeFilter],
+  providers: [DocumentsService, IngestionService, UploadSizeFilter],
 })
 export class DocumentsModule {}

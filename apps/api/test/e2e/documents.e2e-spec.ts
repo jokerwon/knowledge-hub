@@ -1,17 +1,34 @@
-// documents 域现有契约钉住（issue #2）：同步摄取下 md/txt 上传即 200 + ready、
-// 列表、删除、大小/扩展名/MIME 违规 400。ADR 0001 的异步化改造落地时，这些
-// 断言的调整必须是显式的契约变更，而不是静默漂移。
+// documents 域契约钉住（issue #3 起）：ADR 0001 异步受理——POST /documents 返回
+// 202 + processing；md/txt 由本地执行器在请求内完成收敛，首次列表轮询即 ready；
+// 违规上传仍同步 400。契约从 issue #2 的「200 + ready 同步摄取」迁移到此形态，
+// 是显式变更（响应码、status 语义、新增 failure_reason 字段）。
 import type { Server } from 'node:http';
 import request from 'supertest';
 import type { DocumentDto } from '@kh/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { UUID_RE, UPLOAD_MAX_BYTES, errorMessage, upload } from './fixtures';
-import { getAccessToken, resetData, startApp, stopApp } from './harness';
+import {
+  documentRow,
+  getAccessToken,
+  resetData,
+  startApp,
+  stopApp,
+} from './harness';
 
 // 响应体 cast 说明：断言即校验——cast 到契约形状只为逐字段断言服务，
 // 形状不符时下方断言立即失败，不存在静默读错。
 
-describe('documents 契约（现有同步摄取）', () => {
+const DOC_KEYS = ['created_at', 'failure_reason', 'id', 'status', 'title'];
+
+async function listDocs(server: Server, token: string): Promise<DocumentDto[]> {
+  const res = await request(server)
+    .get('/documents')
+    .set('Authorization', `Bearer ${token}`);
+  expect(res.status).toBe(200);
+  return res.body as DocumentDto[];
+}
+
+describe('documents 契约（异步受理）', () => {
   let server: Server;
   let token: string;
 
@@ -26,39 +43,67 @@ describe('documents 契约（现有同步摄取）', () => {
     token = await getAccessToken();
   });
 
-  describe('上传 md/txt：200 且 ready（同步摄取契约）', () => {
-    it('.md → 200 且 ready，响应形状恰为 id/title/status/created_at', async () => {
+  describe('上传 md/txt：202 受理 + processing', () => {
+    it('.md → 202 且 processing，响应形状恰为 id/title/status/created_at/failure_reason', async () => {
       const res = await upload(server, token, {
         name: '笔记.md',
         content: Buffer.from('# 标题\n\n正文'),
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
       const doc = res.body as DocumentDto;
       // 键集合严格钉住：content 等内部字段不得外泄
-      expect(Object.keys(doc).sort()).toEqual([
-        'created_at',
-        'id',
-        'status',
-        'title',
-      ]);
+      expect(Object.keys(doc).sort()).toEqual(DOC_KEYS);
       expect(doc.id).toMatch(UUID_RE);
       expect(doc.title).toBe('笔记');
-      expect(doc.status).toBe('ready');
+      expect(doc.status).toBe('processing');
+      expect(doc.failure_reason).toBeNull();
       expect(Number.isNaN(Date.parse(doc.created_at))).toBe(false);
     });
 
-    it('.txt → 200 且 ready', async () => {
+    it('.md 受理后首次列表轮询即 ready（本地执行器在请求内收敛）', async () => {
+      const res = await upload(server, token, {
+        name: '笔记.md',
+        content: Buffer.from('# 标题\n\n正文'),
+      });
+      const doc = res.body as DocumentDto;
+
+      const docs = await listDocs(server, token);
+      expect(docs).toHaveLength(1);
+      expect(docs[0].id).toBe(doc.id);
+      expect(docs[0].status).toBe('ready');
+      expect(docs[0].failure_reason).toBeNull();
+    });
+
+    it('.md 内容摄取回归：content 与上传字节一致（夹具 SQL 断言，content 不在 HTTP 契约内）', async () => {
+      const content = '# 标题\n\n正文 \uFEFF带 BOM 的旧文件';
+      const res = await upload(server, token, {
+        name: '回归.md',
+        content: Buffer.from(`\uFEFF${content}`),
+      });
+      const doc = res.body as DocumentDto;
+
+      const row = await documentRow(doc.id);
+      expect(row).not.toBeNull();
+      // 与改造前一致：BOM 剥离，其余逐字节保留
+      expect(row!.content).toBe(content);
+      expect(row!.status).toBe('ready');
+      expect(row!.failure_reason).toBeNull();
+    });
+
+    it('.txt → 202 且收敛 ready', async () => {
       const res = await upload(server, token, {
         name: 'readme.txt',
         content: Buffer.from('plain text'),
         contentType: 'text/plain',
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
       const doc = res.body as DocumentDto;
       expect(doc.title).toBe('readme');
-      expect(doc.status).toBe('ready');
+      expect(doc.status).toBe('processing');
+      const docs = await listDocs(server, token);
+      expect(docs[0].status).toBe('ready');
     });
 
     it('中文文件名 → 标题保留 UTF-8 原文（不乱码）', async () => {
@@ -67,42 +112,42 @@ describe('documents 契约（现有同步摄取）', () => {
         content: Buffer.from('内容'),
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
       const doc = res.body as DocumentDto;
       expect(doc.title).toBe('验收文档');
     });
 
-    it('大写扩展名 .MD → 200，标题仍剥离扩展名', async () => {
+    it('大写扩展名 .MD → 202，标题仍剥离扩展名', async () => {
       const res = await upload(server, token, {
         name: 'NOTE.MD',
         content: Buffer.from('note'),
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
       const doc = res.body as DocumentDto;
       expect(doc.title).toBe('NOTE');
     });
 
-    it('空文件 → 200 且 ready', async () => {
+    it('空文件 → 202 且收敛 ready', async () => {
       const res = await upload(server, token, {
         name: '空.md',
         content: Buffer.alloc(0),
       });
 
-      expect(res.status).toBe(200);
-      const doc = res.body as DocumentDto;
-      expect(doc.status).toBe('ready');
+      expect(res.status).toBe(202);
+      const docs = await listDocs(server, token);
+      expect(docs[0].status).toBe('ready');
     });
 
-    it('2 MiB 减 1 字节 → 200（当前实际接受的上限）', async () => {
+    it('2 MiB 减 1 字节 → 202（当前实际接受的上限）', async () => {
       const res = await upload(server, token, {
         name: 'max.md',
         content: Buffer.alloc(UPLOAD_MAX_BYTES - 1, 'a'),
       });
 
-      expect(res.status).toBe(200);
-      const doc = res.body as DocumentDto;
-      expect(doc.status).toBe('ready');
+      expect(res.status).toBe(202);
+      const docs = await listDocs(server, token);
+      expect(docs[0].status).toBe('ready');
     });
 
     // 现状钉住：multer 2.x / busboy 1.6 对 fileSize 上限是「到达即拒」语义，
@@ -139,7 +184,7 @@ describe('documents 契约（现有同步摄取）', () => {
       expect(errorMessage(res)).toContain('文件大小超过上限');
     });
 
-    it('.pdf 扩展名 → 400 拒绝', async () => {
+    it('.pdf 扩展名 → 400 拒绝（PDF 支持在 issue #4 落地前维持拒绝）', async () => {
       const res = await upload(server, token, {
         name: '论文.pdf',
         content: Buffer.from('%PDF-1.4'),
@@ -204,12 +249,8 @@ describe('documents 契约（现有同步摄取）', () => {
       expect(docs.map((d) => d.title)).toEqual(['第二篇', '第一篇']);
       expect(docs.every((d) => d.status === 'ready')).toBe(true);
       for (const d of docs) {
-        expect(Object.keys(d).sort()).toEqual([
-          'created_at',
-          'id',
-          'status',
-          'title',
-        ]);
+        expect(Object.keys(d).sort()).toEqual(DOC_KEYS);
+        expect(d.failure_reason).toBeNull();
       }
     });
   });

@@ -1,5 +1,5 @@
 import type { DocumentDto } from "@kh/shared";
-import { FileTextIcon } from "lucide-react";
+import { FileTextIcon, Loader2Icon } from "lucide-react";
 
 import {
   Empty,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/empty";
 import { fetchDocuments } from "@/lib/api-server";
 import { DeleteDocumentButton } from "./delete-document-button";
+import { PollWhenProcessing } from "./poll-when-processing";
 import { RefreshButton } from "./refresh-button";
 import { UploadDialog } from "./upload-dialog";
 
@@ -51,7 +52,10 @@ export default async function DocumentsPage() {
       ) : documents.length === 0 ? (
         <DocumentsEmpty />
       ) : (
-        <DocumentList documents={documents} />
+        <>
+          <PollWhenProcessing documents={documents} />
+          <DocumentList documents={documents} />
+        </>
       )}
     </>
   );
@@ -63,22 +67,66 @@ function DocumentList({ documents }: { documents: DocumentDto[] }) {
       {documents.map((doc) => (
         <li
           key={doc.id}
-          className="flex items-center gap-3 border-b border-hairline px-4 py-3 last:border-b-0"
+          className="border-b border-hairline px-4 py-3 last:border-b-0"
         >
-          <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-ink-subtle" />
-          <span className="text-body-sm min-w-0 flex-1 truncate text-ink" title={doc.title}>
-            {doc.title}
-          </span>
-          <time
-            dateTime={doc.created_at}
-            className="text-caption shrink-0 text-ink-subtle"
-          >
-            {dateFormatter.format(new Date(doc.created_at))}
-          </time>
-          <DeleteDocumentButton id={doc.id} title={doc.title} />
+          <div className="flex items-center gap-3">
+            <FileTextIcon
+              aria-hidden="true"
+              className="size-4 shrink-0 text-ink-subtle"
+            />
+            <div className="min-w-0 flex-1">
+              <span
+                className="text-body-sm block truncate text-ink"
+                title={doc.title}
+              >
+                {doc.title}
+              </span>
+              {doc.status === "failed" && doc.failure_reason && (
+                <span
+                  className="text-caption block truncate text-destructive"
+                  title={doc.failure_reason}
+                >
+                  {doc.failure_reason}
+                </span>
+              )}
+            </div>
+            <StatusBadge status={doc.status} />
+            <time
+              dateTime={doc.created_at}
+              className="text-caption shrink-0 text-ink-subtle"
+            >
+              {dateFormatter.format(new Date(doc.created_at))}
+            </time>
+            <DeleteDocumentButton id={doc.id} title={doc.title} />
+          </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+// status-badge 规格（DESIGN.md）：surface-2 底 + ink-muted 字 + pill；
+// 失败态是唯一语义色（destructive），处理中带转圈提示进行中。
+function StatusBadge({ status }: { status: DocumentDto["status"] }) {
+  if (status === "processing") {
+    return (
+      <span className="text-caption flex shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-ink-muted">
+        <Loader2Icon aria-hidden="true" className="size-3 animate-spin" />
+        处理中
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <span className="text-caption shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
+        失败
+      </span>
+    );
+  }
+  return (
+    <span className="text-caption shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-ink-muted">
+      就绪
+    </span>
   );
 }
 
