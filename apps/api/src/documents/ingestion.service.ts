@@ -121,7 +121,6 @@ export class IngestionService implements OnApplicationShutdown {
     for (;;) {
       if (this.stopped) return;
       if (!(await this.isAlive(docId))) return;
-
       let snapshot: MineruSnapshot | null = null;
       try {
         snapshot = await this.mineru.getBatchResult(batchId);
@@ -135,7 +134,6 @@ export class IngestionService implements OnApplicationShutdown {
           return;
         }
       }
-
       if (snapshot) {
         if (snapshot.state === 'done' && snapshot.fullZipUrl) {
           const markdown = await this.mineru.fetchMarkdown(snapshot.fullZipUrl);

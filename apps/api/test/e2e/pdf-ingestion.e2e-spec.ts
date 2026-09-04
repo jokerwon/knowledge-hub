@@ -181,4 +181,91 @@ describe('PDF 摄取（fake MinerU）', () => {
       expect(errorMessage(res)).toContain('仅支持 .md / .txt / .pdf');
     });
   });
+
+  describe('失败语义：终态 failed 且 failure_reason 分类明确', () => {
+    // 通用收敛助手：上传后（可选）驱动 fake 任务剧本，等待该文档收敛到 failed。
+    // drive 省略用于不依赖 fake 任务的剧本（如提交阶段服务故障）。
+    async function convergeToFailed(
+      drive?: (task: FakeMineruTask) => void,
+    ): Promise<DocumentDto> {
+      const res = await upload(server, token, {
+        name: '被测.pdf',
+        content: MINIMAL_PDF,
+        contentType: 'application/pdf',
+      });
+      expect(res.status).toBe(202);
+      const doc = res.body as DocumentDto;
+      if (drive) {
+        const task = await latestTask();
+        await waitFor(() => task.uploadedBytes !== null);
+        drive(task);
+      }
+      let failed: DocumentDto | undefined;
+      await waitFor(async () => {
+        const docs = await listDocs();
+        failed = docs.find((d) => d.id === doc.id && d.status === 'failed');
+        return failed !== undefined;
+      });
+      return failed!;
+    }
+
+    it('MinerU state=failed + 加密类 err_msg → 文件已加密', async () => {
+      const failed = await convergeToFailed((task) => {
+        task.state = 'failed';
+        task.errMsg = 'The file is encrypted and requires a password';
+      });
+      expect(failed.failure_reason).toContain('文件已加密');
+      expect(failed.failure_reason).toContain('解密');
+    });
+
+    it('MinerU state=failed + 页数超限类 err_msg → 页数超过上限', async () => {
+      const failed = await convergeToFailed((task) => {
+        task.state = 'failed';
+        task.errMsg = 'Page count exceeds the maximum limit of 200 pages';
+      });
+      expect(failed.failure_reason).toContain('页数超过上限');
+      expect(failed.failure_reason).toContain('100 页');
+    });
+
+    it('running 期上报 total_pages 超过 PDF_MAX_PAGES → 页数超过上限（含实际页数）', async () => {
+      const failed = await convergeToFailed((task) => {
+        task.state = 'running';
+        task.totalPages = 150;
+      });
+      expect(failed.failure_reason).toContain('页数超过上限');
+      expect(failed.failure_reason).toContain('150');
+    });
+
+    it('MinerU state=failed + 一般 err_msg → 解析失败且保留原文', async () => {
+      const failed = await convergeToFailed((task) => {
+        task.state = 'failed';
+        task.errMsg =
+          'Unsupported file format, please upload a valid file type';
+      });
+      expect(failed.failure_reason).toContain('解析失败');
+      expect(failed.failure_reason).toContain('Unsupported file format');
+    });
+
+    it('提交阶段服务故障（批次申请 500）→ MinerU 服务故障', async () => {
+      mineru.failCreateStatus = 500;
+      try {
+        const failed = await convergeToFailed();
+        expect(failed.failure_reason).toContain('MinerU 服务故障');
+        expect(failed.failure_reason).toContain('/api/v4/file-urls/batch');
+      } finally {
+        mineru.failCreateStatus = null;
+      }
+    });
+
+    it('轮询持续故障（连续 5 次 500）→ MinerU 服务故障（轮询连续失败）', async () => {
+      mineru.failPollStatus = 503;
+      try {
+        const failed = await convergeToFailed();
+        expect(failed.failure_reason).toContain('MinerU 服务故障');
+        expect(failed.failure_reason).toContain('轮询连续失败');
+      } finally {
+        mineru.failPollStatus = null;
+      }
+    });
+  });
 });
