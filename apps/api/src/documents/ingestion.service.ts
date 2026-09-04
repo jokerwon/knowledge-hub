@@ -62,8 +62,8 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
   async onModuleInit(): Promise<void> {
     const rows = await this.documentsRepo.find({
       where: { status: 'processing' },
+      order: { createdAt: 'ASC' }, // 恢复排队按最旧优先：deadline 最近的先派发
     });
-    if (rows.length === 0) return;
     let resumed = 0;
     let interrupted = 0;
     for (const row of rows) {
@@ -92,6 +92,7 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
       `启动恢复：processing=${rows.length} 续轮询=${resumed} 中断置失败=${interrupted}`,
     );
   }
+
   // 本地执行器：md/txt 的文本提取在调用方（请求内）完成，这里只做收敛写入。
   async completeLocal(docId: string, content: string): Promise<void> {
     if (await this.transition(docId, { status: 'ready', content })) {
@@ -167,8 +168,10 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
     deadlineAt: number,
   ): Promise<void> {
     let consecutiveErrors = 0;
+    // 结果包下载失败单独计数：解析已成功，下载可重试（受总超时约束），
+    // 连续失败达阈值才置失败——不因一次 CDN 抖动误杀已完成的解析。
+    let downloadErrors = 0;
     for (;;) {
-      if (this.stopped) return;
       if (!(await this.isAlive(docId))) return;
       let snapshot: MineruSnapshot | null = null;
       try {
@@ -183,24 +186,41 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
           return;
         }
       }
+
       if (snapshot) {
         if (snapshot.state === 'done' && snapshot.fullZipUrl) {
-          const markdown = await this.mineru.fetchMarkdown(snapshot.fullZipUrl);
-          if (
-            await this.transition(docId, { status: 'ready', content: markdown })
-          ) {
-            this.logger.log(`PDF 解析完成 doc=${docId}`);
+          try {
+            const markdown = await this.mineru.fetchMarkdown(
+              snapshot.fullZipUrl,
+            );
+            if (
+              await this.transition(docId, {
+                status: 'ready',
+                content: markdown,
+              })
+            ) {
+              this.logger.log(`PDF 解析完成 doc=${docId}`);
+            }
+            return;
+          } catch (err) {
+            if (++downloadErrors >= MAX_CONSECUTIVE_POLL_ERRORS) {
+              await this.fail(
+                docId,
+                `MinerU 服务故障：结果包下载连续失败（${messageOf(err)}）`,
+              );
+              return;
+            }
+            this.logger.warn(
+              `结果包下载失败，稍后重试 doc=${docId} err=${messageOf(err)}`,
+            );
           }
-          return;
-        }
-        if (snapshot.state === 'failed') {
+        } else if (snapshot.state === 'failed') {
           await this.fail(
             docId,
             classifyMineruFailure(snapshot.errMsg, this.pdfMaxPages),
           );
           return;
-        }
-        if (
+        } else if (
           snapshot.totalPages !== null &&
           snapshot.totalPages > this.pdfMaxPages
         ) {
@@ -227,8 +247,8 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
       this.logger.warn(`摄取失败 doc=${docId} reason="${reason}"`);
     }
   }
-
-  // 终态/推进写入的唯一通道：带 status 与软删除守卫的条件更新。
+  // 终态/推进写入的唯一通道：只允许 processing → ready/failed 且行未被软删除
+  // （守卫参数显式命名，防止未来调用方误以为可从任意状态迁移）。
   // 返回是否真的推进了（false = 行不存在 / 已删除 / 已不是 processing）。
   private async transition(
     docId: string,
@@ -243,14 +263,15 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
       .createQueryBuilder()
       .update(DocumentEntity)
       .set(patch)
-      .where('id = :id AND status = :status AND deleted_at IS NULL', {
+      .where('id = :id AND status = :currentStatus AND deleted_at IS NULL', {
         id: docId,
-        status: 'processing',
+        currentStatus: 'processing',
       })
       .execute();
     return (result.affected ?? 0) > 0;
   }
 
+  // 行仍处于 processing 且未软删除（findOne 默认排除已删行）。
   private async isAlive(docId: string): Promise<boolean> {
     const row = await this.documentsRepo.findOne({
       where: { id: docId, status: 'processing' },
@@ -270,9 +291,12 @@ function classifyMineruFailure(errMsg: string, maxPages: number): string {
   if (/encrypt|password|加密|密码/i.test(errMsg)) {
     return '文件已加密：暂不支持加密 PDF，请解密后重新上传';
   }
+  // 页数类错误：匹配「页数 + 超限」的组合短语，避免 "page not found" 类
+  // 无关消息（仅含 page 或仅含 limit）误判为页数超限
   if (
-    /page|页/i.test(errMsg) &&
-    /exceed|limit|超过|上限|too many/i.test(errMsg)
+    /page\s*(count|number|num|exceed|limit)|too many pages|页数.*超过|超过.*页/i.test(
+      errMsg,
+    )
   ) {
     return `页数超过上限：PDF 最多 ${maxPages} 页，请拆分后重新上传`;
   }

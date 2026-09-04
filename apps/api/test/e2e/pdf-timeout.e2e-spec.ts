@@ -37,8 +37,9 @@ describe('PDF 解析超时（注入时钟）', () => {
     await resetData();
     token = await getAccessToken();
     mineru.tasks.clear();
+    // FakeClock 有意不重置：deadline 相对 clock.now() 计算，虚拟时间顺延
+    // 只会让后续用例的窗口更宽，不影响断言。
   });
-
   it('任务 15 分钟未到终态 → failed 且原因为解析超时', async () => {
     const res = await upload(server, token, {
       name: '缓慢.pdf',
@@ -96,14 +97,20 @@ describe('PDF 解析超时（注入时钟）', () => {
     await clock.advanceBy(FIFTEEN_MINUTES_MS - 60_000);
     task.state = 'done';
     task.markdown = '# 及时完成';
+    // 等循环重新挂起 sleep 再推进：否则第二次 advanceBy 可能赶在
+    // 新 sleep 注册之前，无人可唤醒
+    await waitFor(() => clock.pendingSleeps > 0);
     await clock.advanceBy(10_000);
 
+    let converged: DocumentDto | undefined;
     await waitFor(async () => {
       const list = await request(server)
         .get('/documents')
         .set('Authorization', `Bearer ${token}`);
-      const docs = list.body as DocumentDto[];
-      return docs.some((d) => d.id === doc.id && d.status === 'ready');
+      converged = (list.body as DocumentDto[]).find((d) => d.id === doc.id);
+      return converged?.status === 'ready';
     });
+    // 明确断言未走超时路径（而非仅等到 ready）
+    expect(converged?.failure_reason).toBeNull();
   });
 });

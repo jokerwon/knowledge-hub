@@ -118,7 +118,7 @@ function assertPdfMagic(file: Express.Multer.File): void {
 // md/txt：大小超限（multer 上限按 PDF 档设置，此处按文本档精确判定）与
 // UTF-8 可解码（魔数嗅探的文本档等价物）双校验。
 function assertTextUpload(file: Express.Multer.File, maxBytes: number): void {
-  if (file.size > maxBytes) {
+  if (file.buffer.length > maxBytes) {
     throw new BadRequestException(
       `.md / .txt 文件大小超过上限（≤ ${maxBytes} 字节），PDF 请使用 .pdf 扩展名`,
     );

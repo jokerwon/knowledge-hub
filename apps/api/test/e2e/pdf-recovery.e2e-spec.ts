@@ -47,7 +47,9 @@ describe('启动恢复（进程崩溃不丢任务）', () => {
       createdAt: minutesAgo(2),
     });
 
-    // 剧本 2：崩溃前已提交、恢复时仍在解析、但 15 分钟总超时已过 → 解析超时
+    // 剧本 2：崩溃前已提交、恢复时仍在解析、但 15 分钟总超时已过 → 解析超时。
+    // 注意锚点耦合：恢复 deadline = created_at + 15min（onModuleInit 的近似），
+    // 若未来改用提交时刻列，20 分钟的种子需同步调整。
     const runningTask = mineru.createTask({ batchId: randomUUID() });
     runningTask.state = 'running';
     await seedProcessingDocument({
@@ -63,10 +65,10 @@ describe('启动恢复（进程崩溃不丢任务）', () => {
       title: '恢复-中断',
       createdAt: minutesAgo(1),
     });
-
     server = await startApp();
     token = await getAccessToken();
   });
+
   afterAll(async () => {
     await stopApp();
     await mineru.close();

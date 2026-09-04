@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { extractZipEntry } from './zip';
 
 // MinerU 官方云 API 客户端（ADR 0001 决策 1）：本地文件走批次上传通道——
@@ -11,6 +11,9 @@ import { extractZipEntry } from './zip';
 const DEFAULT_API_BASE = 'https://mineru.net';
 const REQUEST_TIMEOUT_MS = 30_000;
 const FULL_MD_ENTRY = 'full.md';
+// 结果包大小上限：markdown + json + 图片资源的 zip，100 页文档远小于此；
+// 超限视为异常响应。
+const MAX_RESULT_ZIP_BYTES = 256 * 1024 * 1024;
 
 // 批次任务快照：MinerU 的 state 集合（waiting-file/pending/running/converting
 // 均视为在途）。totalPages 来自 running 期进度，done 期不返回。
@@ -24,7 +27,6 @@ export interface MineruSnapshot {
 
 @Injectable()
 export class MineruClient {
-  private readonly logger = new Logger(MineruClient.name);
   private readonly apiBase: string;
   private readonly token: string;
 
@@ -61,6 +63,9 @@ export class MineruClient {
     const uploadUrl = created.file_urls[0];
     if (!uploadUrl) {
       throw new Error('MinerU 未返回上传 URL');
+    }
+    if (!created.batch_id) {
+      throw new Error('MinerU 未返回批次号');
     }
 
     // 预签名 URL 直传：官方要求不携带 Content-Type（也不带 Authorization——
@@ -112,6 +117,8 @@ export class MineruClient {
   }
 
   // 下载结果 zip 并取出 full.md（Markdown 正文）。提取的图片资源按 ADR 决策 10 丢弃。
+  // 结果包大小双重设防（content-length 预检 + 读后实测）：异常大的响应尽快失败，
+  // 不让外部服务把进程内存拖垮。
   async fetchMarkdown(fullZipUrl: string): Promise<string> {
     const res = await fetch(fullZipUrl, {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -119,7 +126,14 @@ export class MineruClient {
     if (!res.ok) {
       throw new Error(`下载 MinerU 结果包失败：HTTP ${res.status}`);
     }
+    const declaredLength = Number(res.headers.get('content-length') ?? '0');
+    if (declaredLength > MAX_RESULT_ZIP_BYTES) {
+      throw new Error(`MinerU 结果包过大：${declaredLength} 字节`);
+    }
     const zip = Buffer.from(await res.arrayBuffer());
+    if (zip.length > MAX_RESULT_ZIP_BYTES) {
+      throw new Error(`MinerU 结果包过大：${zip.length} 字节`);
+    }
     return extractZipEntry(zip, FULL_MD_ENTRY).toString('utf8');
   }
 

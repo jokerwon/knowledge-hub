@@ -21,10 +21,13 @@ export class AddAsyncIngestion1788500000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
+      ALTER TABLE documents DROP CONSTRAINT documents_status_check;
+      -- 回退后 CHECK 不再容纳 processing：残留的 processing 行先收敛为
+      -- failed，否则下方 ADD CONSTRAINT 会因校验失败而回滚失败
+      UPDATE documents SET status = 'failed' WHERE status = 'processing';
       ALTER TABLE documents
         DROP COLUMN failure_reason,
         DROP COLUMN mineru_task_id;
-      ALTER TABLE documents DROP CONSTRAINT documents_status_check;
       ALTER TABLE documents
         ADD CONSTRAINT documents_status_check
         CHECK (status IN ('ready','failed'))

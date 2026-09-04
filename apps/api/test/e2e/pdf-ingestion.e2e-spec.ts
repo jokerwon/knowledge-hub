@@ -294,7 +294,13 @@ describe('PDF 摄取（fake MinerU）', () => {
         task.markdown = '# 批量完成';
       }
       await waitFor(() => mineru.tasks.size === 5);
-      for (const task of [...mineru.tasks.values()].slice(3)) {
+      // 等第 4/5 个任务的 PUT 落地再改状态——fake 的 PUT 处理器会覆写
+      // task.state，抢先赋 done 会被 pending 冲掉
+      const remaining = [...mineru.tasks.values()].slice(3);
+      await waitFor(() =>
+        remaining.every((task) => task.uploadedBytes !== null),
+      );
+      for (const task of remaining) {
         task.state = 'done';
         task.markdown = '# 批量完成';
       }
