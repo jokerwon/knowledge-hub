@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  OnModuleInit,
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -24,12 +25,14 @@ const MAX_CONSECUTIVE_POLL_ERRORS = 5;
 
 interface PdfJob {
   docId: string;
-  fileName: string;
-  bytes: Buffer;
+  // 新受理：待提交 MinerU
+  submit?: { fileName: string; bytes: Buffer };
+  // 启动恢复：崩溃前已提交，凭 batchId 续轮询，deadline 沿用原提交时刻
+  resume?: { batchId: string; deadlineAt: number };
 }
 
 @Injectable()
-export class IngestionService implements OnApplicationShutdown {
+export class IngestionService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(IngestionService.name);
   private readonly pollIntervalMs = cfgInt(
     'MINERU_POLL_INTERVAL_MS',
@@ -52,6 +55,43 @@ export class IngestionService implements OnApplicationShutdown {
     this.stopped = true;
   }
 
+  // 启动恢复（ADR 0001 决策 5）：扫描 processing 行——
+  // 有 mineru_task_id 的（崩溃前已提交）入队续轮询；
+  // 无任务号的（受理后、提交前崩溃的 PDF，或请求内收敛被打断的 md/txt）
+  // 文件字节已不可得，无法重放，置 failed 提示重传。
+  async onModuleInit(): Promise<void> {
+    const rows = await this.documentsRepo.find({
+      where: { status: 'processing' },
+    });
+    if (rows.length === 0) return;
+    let resumed = 0;
+    let interrupted = 0;
+    for (const row of rows) {
+      if (row.mineruTaskId) {
+        // 表结构无提交时刻列（migration 只加 failure_reason/mineru_task_id）：
+        // 以 created_at 近似提交时刻。偏差 = 受理到提交的排队时长，方向保守
+        // （崩溃间隙也计入超时窗口），符合「15 分钟总超时」语义。
+        this.enqueuePdf({
+          docId: row.id,
+          resume: {
+            batchId: row.mineruTaskId,
+            deadlineAt: row.createdAt.getTime() + MINERU_TIMEOUT_MS,
+          },
+        });
+        resumed++;
+      } else if (
+        await this.transition(row.id, {
+          status: 'failed',
+          failureReason: '服务重启导致摄取中断：请重新上传',
+        })
+      ) {
+        interrupted++;
+      }
+    }
+    this.logger.log(
+      `启动恢复：processing=${rows.length} 续轮询=${resumed} 中断置失败=${interrupted}`,
+    );
+  }
   // 本地执行器：md/txt 的文本提取在调用方（请求内）完成，这里只做收敛写入。
   async completeLocal(docId: string, content: string): Promise<void> {
     if (await this.transition(docId, { status: 'ready', content })) {
@@ -92,11 +132,20 @@ export class IngestionService implements OnApplicationShutdown {
 
   private async runPdfJob(job: PdfJob): Promise<void> {
     try {
+      if (job.resume) {
+        // 恢复路径：任务已在 MinerU 侧存在，直接续轮询
+        await this.awaitTerminalState(
+          job.docId,
+          job.resume.batchId,
+          job.resume.deadlineAt,
+        );
+        return;
+      }
       // 排队期间行可能已被删除/截断：提交前先验活，不白扔 MinerU 配额
       if (!(await this.isAlive(job.docId))) return;
       const batchId = await this.mineru.submitFile(
-        job.fileName,
-        job.bytes,
+        job.submit!.fileName,
+        job.submit!.bytes,
         job.docId,
       );
       if (!(await this.transition(job.docId, { mineruTaskId: batchId }))) {

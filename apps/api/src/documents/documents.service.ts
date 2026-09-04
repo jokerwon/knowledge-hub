@@ -54,8 +54,7 @@ export class DocumentsService {
     if (pdf) {
       this.ingestion.enqueuePdf({
         docId: id,
-        fileName: file.originalname,
-        bytes: file.buffer,
+        submit: { fileName: file.originalname, bytes: file.buffer },
       });
       this.logger.log(`PDF 已受理进入解析队列 doc=${id} title="${title}"`);
     } else {

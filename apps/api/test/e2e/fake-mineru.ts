@@ -32,6 +32,8 @@ export interface FakeMineru {
   failCreateStatus: number | null;
   failPollStatus: number | null;
   close(): Promise<void>;
+  // 恢复测试播种：不经 HTTP 直接在任务表放入已知 batchId 的任务
+  createTask(init: { batchId: string; fileName?: string }): FakeMineruTask;
 }
 
 export async function startFakeMineru(): Promise<FakeMineru> {
@@ -43,6 +45,21 @@ export async function startFakeMineru(): Promise<FakeMineru> {
     failCreateStatus: null,
     failPollStatus: null,
     close: () => new Promise((resolve) => fake.server.close(() => resolve())),
+    createTask: (init: { batchId: string; fileName?: string }) => {
+      const task: FakeMineruTask = {
+        batchId: init.batchId,
+        fileName: init.fileName ?? 'recovered.pdf',
+        dataId: null,
+        uploadedBytes: Buffer.alloc(0),
+        state: 'pending',
+        errMsg: '',
+        totalPages: null,
+        markdown: '',
+        zipDeflated: true,
+      };
+      fake.tasks.set(init.batchId, task);
+      return task;
+    },
   };
 
   const server = createServer((req, res) => {

@@ -268,4 +268,72 @@ describe('PDF 摄取（fake MinerU）', () => {
       }
     });
   });
+
+  describe('韧性与并发（issue #6）', () => {
+    it('在飞并发上限 3：第 4/5 个任务排队，前序完成后才提交', async () => {
+      const ids: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const res = await upload(server, token, {
+          name: `批量-${i}.pdf`,
+          content: MINIMAL_PDF,
+          contentType: 'application/pdf',
+        });
+        expect(res.status).toBe(202);
+        ids.push((res.body as DocumentDto).id);
+      }
+
+      // 确定性不变量：派发只在占位释放后发生，而释放只在任务终态后发生——
+      // 无任务完成时 MinerU 侧见到的任务数封顶在 3
+      await waitFor(() => mineru.tasks.size === 3);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(mineru.tasks.size).toBe(3);
+
+      // 完成前 3 个 → 后 2 个才被提交
+      for (const task of [...mineru.tasks.values()]) {
+        task.state = 'done';
+        task.markdown = '# 批量完成';
+      }
+      await waitFor(() => mineru.tasks.size === 5);
+      for (const task of [...mineru.tasks.values()].slice(3)) {
+        task.state = 'done';
+        task.markdown = '# 批量完成';
+      }
+
+      await waitFor(async () => {
+        const docs = await listDocs();
+        return (
+          docs.filter((d) => ids.includes(d.id) && d.status === 'ready')
+            .length === 5
+        );
+      });
+    });
+
+    it('删除 processing 文档 → 轮询器跳过该任务，状态不复活', async () => {
+      const res = await upload(server, token, {
+        name: '误传.pdf',
+        content: MINIMAL_PDF,
+        contentType: 'application/pdf',
+      });
+      const doc = res.body as DocumentDto;
+      const task = await latestTask();
+      await waitFor(() => task.uploadedBytes !== null);
+
+      // 处理中删除（撤销误传）
+      const del = await request(server)
+        .delete(`/documents/${doc.id}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(del.status).toBe(204);
+
+      // MinerU 侧照常完成：轮询循环验活失败应跳过，终态写入被守卫拦下
+      task.state = 'done';
+      task.markdown = '# 不应落地';
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const docs = await listDocs();
+      expect(docs.find((d) => d.id === doc.id)).toBeUndefined();
+      const row = await documentRow(doc.id);
+      expect(row?.deleted_at).not.toBeNull();
+      expect(row?.status).toBe('processing'); // 不复活
+    });
+  });
 });
