@@ -1,17 +1,26 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { DocumentDto } from '@kh/shared';
+import { DEFAULT_MAX_UPLOAD_BYTES, type DocumentDto } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
+import * as path from 'node:path';
 import type { Repository } from 'typeorm';
+import { cfgInt } from '../config';
 import { DocumentEntity } from './entities/document.entity';
 import { IngestionService } from './ingestion.service';
 
 // 摄取编排（ADR 0001）：POST /documents 只做受理——校验、落 processing 行、
-// 把解析交给执行器，随即返回 202。md/txt 由本地执行器在请求内完成收敛，
-// PDF 交给 MinerU 轮询器（issue #4 起接入）。
+// 把解析交给执行器，随即返回 202。md/txt 由本地执行器在请求内完成收敛；
+// PDF 入后台队列走 MinerU（并发上限 3，超出排队）。
+
+const PDF_MAGIC = Buffer.from('%PDF-');
+
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
+  private readonly textMaxBytes = cfgInt(
+    'UPLOAD_MAX_BYTES',
+    DEFAULT_MAX_UPLOAD_BYTES,
+  );
 
   constructor(
     @InjectRepository(DocumentEntity)
@@ -19,10 +28,19 @@ export class DocumentsService {
     private readonly ingestion: IngestionService,
   ) {}
 
-  // 受理即 202 + processing；md/txt 本地提取在返回前完成（首次轮询即 ready）。
+  // 受理即 202 + processing；同步可判定的违规（魔数/大小/UTF-8）在落库前 400。
+  // md/txt 本地提取在返回前完成（首次轮询即 ready）。
   async acceptUpload(file: Express.Multer.File): Promise<DocumentDto> {
     const title = titleFromFilename(file.originalname);
-    const content = file.buffer.toString('utf8').replace(/^\uFEFF/, '');
+    const pdf = isPdfName(file.originalname);
+    if (pdf) {
+      // PDF：魔数嗅探（决策 8）——multer 扩展名白名单外的第二道类型校验
+      assertPdfMagic(file);
+    } else {
+      // md/txt：服务层判大小上限（multer 上限按 PDF 档设置）+ UTF-8 可解码
+      assertTextUpload(file, this.textMaxBytes);
+    }
+
     const id = randomUUID();
     const row = await this.documentsRepo.save({
       id,
@@ -32,8 +50,20 @@ export class DocumentsService {
       failureReason: null,
       mineruTaskId: null,
     });
-    await this.ingestion.completeLocal(id, content);
-    this.logger.log(`摄取成功 doc=${id} title="${title}"`);
+
+    if (pdf) {
+      this.ingestion.enqueuePdf({
+        docId: id,
+        fileName: file.originalname,
+        bytes: file.buffer,
+      });
+      this.logger.log(`PDF 已受理进入解析队列 doc=${id} title="${title}"`);
+    } else {
+      const content = decodeTextContent(file.buffer);
+      await this.ingestion.completeLocal(id, content);
+      this.logger.log(`摄取成功 doc=${id} title="${title}"`);
+    }
+
     return {
       id,
       title,
@@ -73,8 +103,44 @@ export class DocumentsService {
   }
 }
 
+function isPdfName(originalname: string): boolean {
+  return path.extname(originalname).toLowerCase() === '.pdf';
+}
+
+// PDF 魔数嗅探（决策 8）：拦截改后缀伪装的非 PDF（如 .pdf 之名行的文本文件）。
+function assertPdfMagic(file: Express.Multer.File): void {
+  if (!file.buffer.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)) {
+    throw new BadRequestException(
+      `文件内容不是有效的 PDF（缺少 %PDF- 文件头）：请确认 ${file.originalname} 未损坏或未改名伪装`,
+    );
+  }
+}
+
+// md/txt：大小超限（multer 上限按 PDF 档设置，此处按文本档精确判定）与
+// UTF-8 可解码（魔数嗅探的文本档等价物）双校验。
+function assertTextUpload(file: Express.Multer.File, maxBytes: number): void {
+  if (file.size > maxBytes) {
+    throw new BadRequestException(
+      `.md / .txt 文件大小超过上限（≤ ${maxBytes} 字节），PDF 请使用 .pdf 扩展名`,
+    );
+  }
+  try {
+    decodeTextContent(file.buffer);
+  } catch {
+    throw new BadRequestException(
+      `文件内容不是有效的 UTF-8 文本：请确认 ${file.originalname} 未损坏或未改名伪装`,
+    );
+  }
+}
+
+// fatal 解码：非法字节序列直接抛错；解码器默认剥离 BOM，与改造前的
+// toString + replace(/^\uFEFF/) 语义一致（见 e2e 回归用例）。
+function decodeTextContent(buffer: Buffer): string {
+  return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+}
+
 function titleFromFilename(originalname: string): string {
   const base = originalname.split(/[\\/]/).pop() ?? originalname;
-  const title = base.replace(/\.(md|txt)$/i, '');
+  const title = base.replace(/\.(md|txt|pdf)$/i, '');
   return title || base;
 }

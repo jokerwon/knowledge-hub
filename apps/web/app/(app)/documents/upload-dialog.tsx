@@ -1,7 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { DEFAULT_MAX_UPLOAD_BYTES } from "@kh/shared";
+import {
+  DEFAULT_MAX_UPLOAD_BYTES,
+  DEFAULT_PDF_MAX_UPLOAD_BYTES,
+  DEFAULT_PDF_MAX_PAGES,
+} from "@kh/shared";
 import { UploadIcon } from "lucide-react";
 
 import {
@@ -19,13 +23,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { uploadDocument } from "./actions";
 
-const MAX_LABEL = `${Math.round(DEFAULT_MAX_UPLOAD_BYTES / 1024 / 1024)} MB`;
-const ALLOWED_PATTERN = /\.(md|txt)$/i;
+const TEXT_MAX_LABEL = `${Math.round(DEFAULT_MAX_UPLOAD_BYTES / 1024 / 1024)} MB`;
+const PDF_MAX_LABEL = `${Math.round(DEFAULT_PDF_MAX_UPLOAD_BYTES / 1024 / 1024)} MB`;
+const ALLOWED_PATTERN = /\.(md|txt|pdf)$/i;
 
-// 前端先拦无谓请求（扩展名 / 大小）；api 侧仍是最终裁决。
+// 前端先拦无谓请求（扩展名 / 大小按档位）；api 侧仍是最终裁决。
 function validate(file: File): string | null {
-  if (!ALLOWED_PATTERN.test(file.name)) return "仅支持 .md / .txt 文件";
-  if (file.size > DEFAULT_MAX_UPLOAD_BYTES) return `超过 ${MAX_LABEL} 大小上限`;
+  if (!ALLOWED_PATTERN.test(file.name)) {
+    return "仅支持 .md / .txt / .pdf 文件";
+  }
+  if (file.name.toLowerCase().endsWith(".pdf")) {
+    if (file.size > DEFAULT_PDF_MAX_UPLOAD_BYTES) {
+      return `超过 ${PDF_MAX_LABEL} 大小上限`;
+    }
+    return null;
+  }
+  if (file.size > DEFAULT_MAX_UPLOAD_BYTES) {
+    return `超过 ${TEXT_MAX_LABEL} 大小上限`;
+  }
   return null;
 }
 
@@ -95,7 +110,7 @@ export function UploadDialog() {
         <DialogHeader>
           <DialogTitle>上传文档</DialogTitle>
           <DialogDescription>
-            拖拽或选择 .md / .txt 文件，单文件 ≤ {MAX_LABEL}，单次一个。
+            拖拽或选择 .md / .txt / .pdf 文件，单次一个。
           </DialogDescription>
         </DialogHeader>
         <FileUpload
@@ -103,11 +118,11 @@ export function UploadDialog() {
           onValueChange={setItems}
           onFilesAdded={handleFilesAdded}
           onRetry={handleRetry}
-          accept=".md,.txt"
+          accept=".md,.txt,.pdf"
           multiple={false}
           variant="centered"
           title="拖拽文件到此处"
-          description={`仅支持 .md / .txt，单文件 ≤ ${MAX_LABEL}`}
+          description={`md/txt ≤ ${TEXT_MAX_LABEL}；PDF ≤ ${PDF_MAX_LABEL} / ${DEFAULT_PDF_MAX_PAGES} 页`}
           browseLabel="选择文件"
         />
       </DialogContent>

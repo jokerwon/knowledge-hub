@@ -139,7 +139,7 @@ function DocumentsEmpty() {
         </EmptyMedia>
         <EmptyTitle>还没有文档</EmptyTitle>
         <EmptyDescription>
-          上传第一个 .md / .txt 文件，开始构建你的知识库。
+          上传第一个 .md / .txt / .pdf 文件，开始构建你的知识库。
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

@@ -150,17 +150,16 @@ describe('documents 契约（异步受理）', () => {
       expect(docs[0].status).toBe('ready');
     });
 
-    // 现状钉住：multer 2.x / busboy 1.6 对 fileSize 上限是「到达即拒」语义，
-    // 恰好 UPLOAD_MAX_BYTES 字节也被拒（文案「≤ N 字节」因此有 1 字节误差）。
-    // 若未来修正为含边界，此处断言应显式更新。
-    it('恰好 2 MiB → 400（busboy 到达上限即拒，现状 off-by-one）', async () => {
+    // 语义变更（issue #4）：multer 上限上移到 PDF 档（20 MiB），md/txt 的 2 MiB
+    // 档改由服务层判定——含边界（恰好 2 MiB 接受）；busboy「到达即拒」的
+    // off-by-one 只保留在 PDF 档（见 pdf-ingestion spec）。
+    it('恰好 2 MiB → 202（服务层含边界判定）', async () => {
       const res = await upload(server, token, {
         name: 'exact.md',
         content: Buffer.alloc(UPLOAD_MAX_BYTES, 'a'),
       });
 
-      expect(res.status).toBe(400);
-      expect(errorMessage(res)).toContain('文件大小超过上限');
+      expect(res.status).toBe(202);
     });
 
     it('缺 file 字段 → 400 且带明确原因', async () => {
@@ -174,7 +173,7 @@ describe('documents 契约（异步受理）', () => {
   });
 
   describe('上传校验：违规一律 400', () => {
-    it('超过 2 MiB → 400 且带明确原因（而非 413）', async () => {
+    it('md/txt 超过 2 MiB（服务层判定）→ 400 且带明确原因（而非 413）', async () => {
       const res = await upload(server, token, {
         name: 'big.md',
         content: Buffer.alloc(UPLOAD_MAX_BYTES + 1, 'a'),
@@ -182,17 +181,17 @@ describe('documents 契约（异步受理）', () => {
 
       expect(res.status).toBe(400);
       expect(errorMessage(res)).toContain('文件大小超过上限');
+      expect(errorMessage(res)).toContain('md / .txt');
     });
 
-    it('.pdf 扩展名 → 400 拒绝（PDF 支持在 issue #4 落地前维持拒绝）', async () => {
+    it('md/txt 内容非法 UTF-8（魔数嗅探的文本档等价物）→ 400', async () => {
       const res = await upload(server, token, {
-        name: '论文.pdf',
-        content: Buffer.from('%PDF-1.4'),
-        contentType: 'application/pdf',
+        name: 'binary.md',
+        content: Buffer.from([0xff, 0xfe, 0x00, 0xd8, 0xff]),
       });
 
       expect(res.status).toBe(400);
-      expect(errorMessage(res)).toContain('仅支持 .md / .txt');
+      expect(errorMessage(res)).toContain('UTF-8');
     });
 
     it('.png 扩展名 → 400 拒绝', async () => {

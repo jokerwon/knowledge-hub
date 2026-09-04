@@ -2,7 +2,11 @@
 // src/config——config 的 loadEnvFile 不覆盖已存在的变量，因此这里的赋值必然生效）。
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { DEFAULT_MAX_UPLOAD_BYTES } from '@kh/shared';
+import {
+  DEFAULT_MAX_UPLOAD_BYTES,
+  DEFAULT_PDF_MAX_UPLOAD_BYTES,
+  DEFAULT_PDF_MAX_PAGES,
+} from '@kh/shared';
 
 // 与 src/config.ts 相同的定位方式：pnpm 脚本 CWD 为 apps/api，上溯 2 级到仓库根。
 const ROOT_ENV = path.resolve(process.cwd(), '..', '..', '.env');
@@ -23,3 +27,13 @@ process.env.DATABASE_URL = testDatabaseUrl;
 // md/txt 上限钉 shared 默认值，边界用例随之确定。
 process.env.JWT_SECRET = 'e2e-test-jwt-secret';
 process.env.UPLOAD_MAX_BYTES = String(DEFAULT_MAX_UPLOAD_BYTES);
+
+// MinerU 测试环境：token 钉死假值；API_BASE 默认指向拒达地址——任何意外
+// 外呼立即失败，绝无打到真云的可能。pdf 相关 spec 在 startApp 前把 base
+// 指到本地 fake server（进程内 node:http）。
+process.env.MINERU_API_TOKEN = 'e2e-mineru-token';
+process.env.MINERU_API_BASE = 'http://127.0.0.1:9';
+process.env.UPLOAD_PDF_MAX_BYTES = String(DEFAULT_PDF_MAX_UPLOAD_BYTES);
+process.env.PDF_MAX_PAGES = String(DEFAULT_PDF_MAX_PAGES);
+// 轮询间隔调小：非注入时钟的用例（收敛/并发）用真实时间驱动但不等 5s 一拍。
+process.env.MINERU_POLL_INTERVAL_MS = '10';

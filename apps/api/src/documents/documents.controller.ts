@@ -35,7 +35,7 @@ export class DocumentsController {
   ): Promise<DocumentDto> {
     if (!file) {
       throw new BadRequestException(
-        '缺少 file 字段：请以 multipart 上传 .md / .txt 文件',
+        '缺少 file 字段：请以 multipart 上传 .md / .txt / .pdf 文件',
       );
     }
     return this.documentsService.acceptUpload(file);

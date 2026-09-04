@@ -10,6 +10,10 @@ import { hashSync } from 'bcryptjs';
 import { Client } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import {
+  INGESTION_CLOCK,
+  type IngestionClock,
+} from '../../src/documents/clock';
 import { TEST_USER, pgSsl } from './fixtures';
 
 let app: INestApplication | null = null;
@@ -24,10 +28,16 @@ function httpServer(): Server {
 }
 
 // beforeAll：起进程内应用（不监听端口，supertest 直连底层 http server）。
-export async function startApp(): Promise<Server> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+// options.clock：轮询器时钟接缝（issue #1 实现决策，唯一例外于「不 import
+// 内部符号」约定）——注入 FakeClock 驱动 15 分钟超时等时间行为，不等真实时间。
+export async function startApp(
+  options: { clock?: IngestionClock } = {},
+): Promise<Server> {
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+  if (options.clock) {
+    builder.overrideProvider(INGESTION_CLOCK).useValue(options.clock);
+  }
+  const moduleRef = await builder.compile();
   app = moduleRef.createNestApplication();
   await app.init();
   return httpServer();

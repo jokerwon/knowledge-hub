@@ -1,6 +1,9 @@
 // e2e 夹具常量与纯助手：不依赖应用生命周期，供 harness 与各 spec 共用。
 import type { Server } from 'node:http';
-import { DEFAULT_MAX_UPLOAD_BYTES } from '@kh/shared';
+import {
+  DEFAULT_MAX_UPLOAD_BYTES,
+  DEFAULT_PDF_MAX_UPLOAD_BYTES,
+} from '@kh/shared';
 import request from 'supertest';
 
 // 受测账号：resetData 每个用例重新播种，密码满足 8-72 字符策略。
@@ -15,6 +18,9 @@ export const UUID_RE =
 // md/txt 上限：直接引用 shared 默认值（setup-env 已把 env 钉在该默认值），
 // 默认值变化时边界用例自动跟随，不与 shared 常量漂移。
 export const UPLOAD_MAX_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
+
+// PDF 上限：与 md/txt 同理，引用 shared 默认值（setup-env 钉住 env）。
+export const PDF_MAX_BYTES = DEFAULT_PDF_MAX_UPLOAD_BYTES;
 
 // PG_SSL 解析与应用侧 buildDataSourceOptions 的 bool() 语义一致：
 // 夹具/维护库的裸 pg Client 与应用连接在要求 SSL 的远程库上行为同步。
@@ -55,4 +61,23 @@ export function errorMessage(res: request.Response): string {
     if (Array.isArray(message)) return message.join('; ');
   }
   return '';
+}
+
+// 异步收敛等待：轮询条件直至为真或超时（20ms 一拍）。断言仍由调用方给出，
+// 本助手只负责等待终态出现，不隐含任何期望。默认 8s：覆盖后台队列派发 +
+// 轮询间隔 + 远程测试库 RTT 的组合抖动（vitest 用例超时 20s 内）。
+export async function waitFor(
+  condition: () => Promise<boolean> | boolean,
+  timeoutMs = 8_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await condition()) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`waitFor 超时（${timeoutMs}ms）`);
+    }
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 20);
+    await promise;
+  }
 }
