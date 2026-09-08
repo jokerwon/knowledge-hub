@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config';
 import { extractZipEntry } from './zip';
 
 // MinerU 官方云 API 客户端（ADR 0001 决策 1）：本地文件走批次上传通道——
@@ -8,7 +10,6 @@ import { extractZipEntry } from './zip';
 //
 // 本模块只做传输与形状解析，不做状态机决策（终态判定在 IngestionService）。
 
-const DEFAULT_API_BASE = 'https://mineru.net';
 const REQUEST_TIMEOUT_MS = 30_000;
 const FULL_MD_ENTRY = 'full.md';
 // 结果包大小上限：markdown + json + 图片资源的 zip，100 页文档远小于此；
@@ -30,20 +31,17 @@ export class MineruClient {
   private readonly apiBase: string;
   private readonly token: string;
 
-  constructor() {
+  constructor(config: ConfigService<AppConfig>) {
+    const cfg = config.getOrThrow('mineru', { infer: true });
     // MINERU_API_TOKEN 必填（issue #1 配置决策）：缺失时 fail-fast，
     // 不允许带病启动到第一次 PDF 上传才炸。
-    const token = process.env.MINERU_API_TOKEN;
-    if (!token) {
+    if (!cfg.apiToken) {
       throw new Error(
         'MINERU_API_TOKEN 未配置：请在 .env 配置 MinerU API token',
       );
     }
-    this.token = token;
-    this.apiBase = (process.env.MINERU_API_BASE ?? DEFAULT_API_BASE).replace(
-      /\/+$/,
-      '',
-    );
+    this.token = cfg.apiToken;
+    this.apiBase = cfg.apiBase;
   }
 
   // 提交本地文件：返回批次号（存 documents.mineru_task_id，启动恢复凭它续轮询）。

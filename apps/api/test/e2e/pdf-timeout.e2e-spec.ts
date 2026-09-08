@@ -24,6 +24,7 @@ describe('PDF 解析超时（注入时钟）', () => {
   beforeAll(async () => {
     await resetData();
     mineru = await startFakeMineru();
+    // 必须先于 startApp：配置工厂在应用初始化期读取 API base
     process.env.MINERU_API_BASE = mineru.url;
     clock = new FakeClock();
     server = await startApp({ clock });

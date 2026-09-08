@@ -3,10 +3,11 @@
 //    开始，migration 全量重放，不依赖上一轮跑过什么。
 // 2) 跑全部 migration，应用与测试共用同一套 schema 产出。
 import 'reflect-metadata'; // 实体装饰器在 import 期写元数据，须先装上 shim
-import { existsSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
+import { loadAppConfig, loadRootEnv } from '../../src/config';
 import { buildDataSourceOptions } from '../../src/database/data-source';
 import { CreateDocuments1788090000000 } from '../../src/database/migrations/1788090000000-CreateDocuments';
 import { AddDeletedAt1788331342758 } from '../../src/database/migrations/1788331342758-AddDeletedAt';
@@ -38,9 +39,8 @@ if (migrationFileCount !== MIGRATIONS.length) {
 }
 
 export default async function globalSetup(): Promise<void> {
-  // 与 src/config.ts 同样的定位方式：pnpm 脚本 CWD 为 apps/api。
-  const rootEnv = path.resolve(process.cwd(), '..', '..', '.env');
-  if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+  // 与应用同一入口加载根 .env（pnpm 脚本 CWD 为 apps/api，见 src/config）。
+  loadRootEnv();
 
   const testUrl = process.env.TEST_DATABASE_URL;
   if (!testUrl) {
@@ -61,7 +61,7 @@ export default async function globalSetup(): Promise<void> {
   // DATABASE_URL 顶替为测试库后，复用应用的 DataSource 选项（ssl/logging 等配置同源）。
   process.env.DATABASE_URL = testUrl;
   const dataSource = new DataSource({
-    ...buildDataSourceOptions(),
+    ...buildDataSourceOptions(loadAppConfig().database),
     migrations: MIGRATIONS,
   });
   await dataSource.initialize();

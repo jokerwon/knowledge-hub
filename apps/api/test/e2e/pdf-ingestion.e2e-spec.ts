@@ -40,7 +40,7 @@ describe('PDF 摄取（fake MinerU）', () => {
     // 先清库再起应用：避免上一 spec 残留的 processing 行在启动期产生后台噪声
     await resetData();
     mineru = await startFakeMineru();
-    // 必须先于 startApp：MinerUClient 在实例化期读取 API base
+    // 必须先于 startApp：配置工厂（ConfigModule load）在应用初始化期读取 API base
     process.env.MINERU_API_BASE = mineru.url;
     server = await startApp();
     token = await getAccessToken();

@@ -1,17 +1,16 @@
-import '../config'; // 副作用：加载根 .env（typeorm CLI 不经 Nest，直接到本文件）
 import * as path from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
+import type { AppConfig } from '../config';
 import { DocumentEntity } from '../documents/entities/document.entity';
 import { UserEntity } from '../users/entities/user.entity';
 
-const bool = (v: string | undefined, fallback: boolean): boolean => {
-  if (!v) return fallback;
-  return v === '1' || v.toLowerCase() === 'true';
-};
-
-export function buildDataSourceOptions(): DataSourceOptions {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
+// Nest 侧由 AppModule 的 forRootAsync 注入 ConfigService 后调用；typeorm CLI、
+// user-cli、e2e 等无 DI 上下文直接传 loadAppConfig().database——env 解析统一在
+// src/config.ts。
+export function buildDataSourceOptions(
+  database: AppConfig['database'],
+): DataSourceOptions {
+  if (!database.url) {
     throw new Error('DATABASE_URL 未配置，请检查 .env');
   }
 
@@ -23,13 +22,13 @@ export function buildDataSourceOptions(): DataSourceOptions {
 
   return {
     type: 'postgres',
-    url: databaseUrl,
+    url: database.url,
     // 实体归领域目录（documents/entities 等），显式注册；migrations 集中在本目录，仍按 glob 扫描。
     entities: [DocumentEntity, UserEntity],
     migrations: [path.join(databaseDir, 'migrations', `*.${ext}`)],
     synchronize: false,
     migrationsRun: false, // 不在启动时自动跑 migration；显式 pnpm migration:run。
-    ssl: bool(process.env.PG_SSL, false),
-    logging: bool(process.env.PG_LOGGING, false),
+    ssl: database.ssl,
+    logging: database.logging,
   };
 }

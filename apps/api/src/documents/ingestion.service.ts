@@ -5,12 +5,12 @@ import {
   OnModuleInit,
   OnApplicationShutdown,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DEFAULT_PDF_MAX_PAGES } from '@kh/shared';
-import { cfgInt } from '../config';
 import type { MineruSnapshot } from '../mineru/mineru.client';
 import { MineruClient } from '../mineru/mineru.client';
 import type { Repository } from 'typeorm';
+import type { AppConfig } from '../config';
 import { INGESTION_CLOCK, type IngestionClock } from './clock';
 import { DocumentEntity } from './entities/document.entity';
 
@@ -18,8 +18,6 @@ import { DocumentEntity } from './entities/document.entity';
 const MAX_IN_FLIGHT_PDF_JOBS = 3;
 // 15 分钟总超时，自提交 MinerU 起；超时置 failed，不自动重试（决策 6）。
 const MINERU_TIMEOUT_MS = 15 * 60 * 1000;
-// 轮询间隔：默认 5s；e2e 经 MINERU_POLL_INTERVAL_MS 调小。
-const DEFAULT_POLL_INTERVAL_MS = 5_000;
 // 轮询连续失败容忍：瞬时抖动不致命，持续故障尽快置失败（而非拖满 15 分钟）。
 const MAX_CONSECUTIVE_POLL_ERRORS = 5;
 
@@ -34,11 +32,8 @@ interface PdfJob {
 @Injectable()
 export class IngestionService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(IngestionService.name);
-  private readonly pollIntervalMs = cfgInt(
-    'MINERU_POLL_INTERVAL_MS',
-    DEFAULT_POLL_INTERVAL_MS,
-  );
-  private readonly pdfMaxPages = cfgInt('PDF_MAX_PAGES', DEFAULT_PDF_MAX_PAGES);
+  private readonly pollIntervalMs: number;
+  private readonly pdfMaxPages: number;
   private readonly queue: PdfJob[] = [];
   private running = 0;
   private stopped = false;
@@ -47,8 +42,13 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
     @InjectRepository(DocumentEntity)
     private readonly documentsRepo: Repository<DocumentEntity>,
     private readonly mineru: MineruClient,
+    config: ConfigService<AppConfig>,
     @Inject(INGESTION_CLOCK) private readonly clock: IngestionClock,
-  ) {}
+  ) {
+    const mineruCfg = config.getOrThrow('mineru', { infer: true });
+    this.pollIntervalMs = mineruCfg.pollIntervalMs;
+    this.pdfMaxPages = mineruCfg.pdfMaxPages;
+  }
 
   // 应用关闭时停止派发与轮询循环；在途行保持 processing，下次启动由恢复逻辑接手。
   onApplicationShutdown(): void {

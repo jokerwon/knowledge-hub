@@ -5,10 +5,10 @@
 //   pnpm user:reset-password <username> [password] # 重置密码（吊销该用户全部会话）
 //   pnpm user:seed <username> [password]           # 仅当 users 表为空时创建首账号
 // password 省略时自动生成 16 位随机密码，仅打印一次。
-import '../src/config';
 
 import { randomBytes, randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
+import { loadAppConfig } from '../src/config';
 import { buildDataSourceOptions } from '../src/database/data-source';
 import { UserEntity } from '../src/users/entities/user.entity';
 import {
@@ -54,8 +54,9 @@ async function main(): Promise<void> {
   const passwordError = validatePassword(password);
   if (passwordError) fail(passwordError);
 
-  const dataSource = new DataSource(buildDataSourceOptions());
-  await dataSource.initialize();
+  const dataSource = new DataSource(
+    buildDataSourceOptions(loadAppConfig().database),
+  );
   const repo = dataSource.getRepository(UserEntity);
 
   try {

@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DEFAULT_MAX_UPLOAD_BYTES, type DocumentDto } from '@kh/shared';
+import { type DocumentDto } from '@kh/shared';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type { Repository } from 'typeorm';
-import { cfgInt } from '../config';
+import type { AppConfig } from '../config';
 import { DocumentEntity } from './entities/document.entity';
 import { IngestionService } from './ingestion.service';
 
@@ -17,16 +18,18 @@ const PDF_MAGIC = Buffer.from('%PDF-');
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
-  private readonly textMaxBytes = cfgInt(
-    'UPLOAD_MAX_BYTES',
-    DEFAULT_MAX_UPLOAD_BYTES,
-  );
+  private readonly textMaxBytes: number;
 
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly documentsRepo: Repository<DocumentEntity>,
     private readonly ingestion: IngestionService,
-  ) {}
+    config: ConfigService<AppConfig>,
+  ) {
+    this.textMaxBytes = config.getOrThrow('upload', {
+      infer: true,
+    }).textMaxBytes;
+  }
 
   // 受理即 202 + processing；同步可判定的违规（魔数/大小/UTF-8）在落库前 400。
   // md/txt 本地提取在返回前完成（首次轮询即 ready）。

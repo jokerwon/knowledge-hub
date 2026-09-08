@@ -34,6 +34,7 @@ describe('启动恢复（进程崩溃不丢任务）', () => {
     // 清库并播种受测账号（resetData），再放种子行，最后才启动应用
     await resetData();
     mineru = await startFakeMineru();
+    // 必须先于 startApp：配置工厂在应用初始化期读取 API base
     process.env.MINERU_API_BASE = mineru.url;
 
     // 剧本 1：崩溃前已提交、MinerU 侧已完成 → 恢复轮询一次即收敛 ready

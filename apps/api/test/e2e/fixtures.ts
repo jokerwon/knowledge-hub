@@ -5,6 +5,7 @@ import {
   DEFAULT_PDF_MAX_UPLOAD_BYTES,
 } from '@kh/shared';
 import request from 'supertest';
+import { loadAppConfig } from '../../src/config';
 
 // 受测账号：resetData 每个用例重新播种，密码满足 8-72 字符策略。
 export const TEST_USER = {
@@ -22,11 +23,10 @@ export const UPLOAD_MAX_BYTES = DEFAULT_MAX_UPLOAD_BYTES;
 // PDF 上限：与 md/txt 同理，引用 shared 默认值（setup-env 钉住 env）。
 export const PDF_MAX_BYTES = DEFAULT_PDF_MAX_UPLOAD_BYTES;
 
-// PG_SSL 解析与应用侧 buildDataSourceOptions 的 bool() 语义一致：
-// 夹具/维护库的裸 pg Client 与应用连接在要求 SSL 的远程库上行为同步。
+// PG_SSL 解析统一走 src/config（boolEnv），夹具/维护库的裸 pg Client 与应用连接
+// 在要求 SSL 的远程库上行为同步。
 export function pgSsl(): boolean {
-  const v = process.env.PG_SSL?.toLowerCase();
-  return v === '1' || v === 'true';
+  return loadAppConfig().database.ssl;
 }
 
 export interface UploadFile {

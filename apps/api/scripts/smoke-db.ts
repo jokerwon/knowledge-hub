@@ -2,11 +2,11 @@
 // PG 冒烟：migration 状态 + documents 表结构（含 content 列）+ 写入/读取/删除往返。
 // 运行方式（从 apps/api 目录）：
 //   TS_NODE_PROJECT=tsconfig.cli.json node --require ts-node/register scripts/smoke-db.ts
-import '../src/config';
 
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import type { QueryResult } from 'pg';
+import { loadAppConfig } from '../src/config';
 
 const fail = (msg: string): never => {
   console.error('[FAIL]', msg);
@@ -22,7 +22,7 @@ const check = (cond: unknown, label: string) => {
 type Row = Record<string, any>;
 
 async function main() {
-  const PG_URL = process.env.DATABASE_URL;
+  const PG_URL = loadAppConfig().database.url;
   if (!PG_URL) fail('DATABASE_URL 未配置');
 
   const pg = new Client({

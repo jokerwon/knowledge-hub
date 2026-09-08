@@ -5,26 +5,23 @@ import {
   HttpStatus,
   PayloadTooLargeException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import {
-  DEFAULT_MAX_UPLOAD_BYTES,
-  DEFAULT_PDF_MAX_UPLOAD_BYTES,
-} from '@kh/shared';
-import { cfgInt } from '../config';
+import type { AppConfig } from '../config';
 
 // multer 超限原生为 413；契约要求违规一律 400 且响应体带明确原因。
 // multer 上限按 PDF 档设置，此处的超限必然是超过了 PDF 上限（> 20 MiB）；
 // md/txt 的 2 MiB 档超限不会走到这里（服务层按文本档判定）。
 @Catch(PayloadTooLargeException)
 export class UploadSizeFilter implements ExceptionFilter {
-  private readonly textMaxBytes = cfgInt(
-    'UPLOAD_MAX_BYTES',
-    DEFAULT_MAX_UPLOAD_BYTES,
-  );
-  private readonly pdfMaxBytes = cfgInt(
-    'UPLOAD_PDF_MAX_BYTES',
-    DEFAULT_PDF_MAX_UPLOAD_BYTES,
-  );
+  private readonly textMaxBytes: number;
+  private readonly pdfMaxBytes: number;
+
+  constructor(config: ConfigService<AppConfig>) {
+    const upload = config.getOrThrow('upload', { infer: true });
+    this.textMaxBytes = upload.textMaxBytes;
+    this.pdfMaxBytes = upload.pdfMaxBytes;
+  }
 
   catch(_exception: PayloadTooLargeException, host: ExecutionContext): void {
     host

@@ -1,8 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import * as path from 'node:path';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import { DEFAULT_PDF_MAX_UPLOAD_BYTES } from '@kh/shared';
-import { cfgInt } from '../config';
+import type { AppConfig } from '../config';
 
 export const UPLOAD_FIELD = 'file';
 
@@ -21,13 +20,14 @@ const isAllowedMime = (ext: string, mime: string): boolean => {
 
 // multer 选项：fileSize 按 PDF 档（决策 7——分层上限的最大档）设置；
 // md/txt 超 2 MiB 在服务层按文本档判定后 400（documents.service）。
-export function buildUploadOptions(): MulterOptions {
+// DocumentsModule 经 registerAsync 注入 ConfigService 后调用。
+export function buildUploadOptions(upload: AppConfig['upload']): MulterOptions {
   return {
     // busboy 默认按 latin1 解码 multipart 文件名参数，非 ASCII 文件名会存成乱码
     // （如「验收文档」→「éªæ¶ææ¡£」）；本系统的客户端一律发送 UTF-8 文件名。
     defParamCharset: 'utf8',
     limits: {
-      fileSize: cfgInt('UPLOAD_PDF_MAX_BYTES', DEFAULT_PDF_MAX_UPLOAD_BYTES),
+      fileSize: upload.pdfMaxBytes,
     },
     fileFilter: (_req, file, callback) => {
       const ext = path.extname(file.originalname).toLowerCase();

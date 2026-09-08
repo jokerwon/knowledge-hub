@@ -1,16 +1,15 @@
-// vitest setupFiles：每个测试文件 import 之前执行（先于 AppModule 及其 import 的
-// src/config——config 的 loadEnvFile 不覆盖已存在的变量，因此这里的赋值必然生效）。
-import { existsSync } from 'node:fs';
-import * as path from 'node:path';
+// vitest setupFiles：每个测试文件 import 之前执行（先于 AppModule 装配——
+// ConfigModule 的 load 工厂在 DI 期才读 env，且 loadEnvFile 不覆盖已存在的
+// 变量，因此这里的赋值必然生效）。
+import { loadRootEnv } from '../../src/config';
 import {
   DEFAULT_MAX_UPLOAD_BYTES,
   DEFAULT_PDF_MAX_UPLOAD_BYTES,
   DEFAULT_PDF_MAX_PAGES,
 } from '@kh/shared';
 
-// 与 src/config.ts 相同的定位方式：pnpm 脚本 CWD 为 apps/api，上溯 2 级到仓库根。
-const ROOT_ENV = path.resolve(process.cwd(), '..', '..', '.env');
-if (existsSync(ROOT_ENV)) process.loadEnvFile(ROOT_ENV);
+// 与应用同一入口加载根 .env（pnpm 脚本 CWD 为 apps/api，见 src/config）。
+loadRootEnv();
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (!testDatabaseUrl) {
