@@ -15,7 +15,7 @@ ADR 0001 规定 MinerU 结果只取 `full.md`，丢弃结果 ZIP 内的图片资
 3. `full.md` 中的图片引用改写为 `RUSTFS_PUBLIC_URL/bucket/key`，供前端直接访问；不新增 API 图片代理。
 4. 对象 key 为 `documents/{docId}/{序号}-{安全文件名}`。序号按 ZIP 中图片条目出现顺序递增；文件名仅保留安全 basename 和受支持的扩展名。
 5. 图片上传失败、RustFS 未启用或 Markdown 引用对应资源缺失，整篇 PDF 摄取失败，不生成 ready 文档和不完整图片引用。
-6. 应用在首次上传图片前检查 bucket；不存在时通过 S3 `CreateBucket` 自动创建。凭据必须具备 `HeadBucket`、`CreateBucket` 和 `PutObject` 权限。
+6. 应用在首次上传图片前检查 bucket；不存在时通过 S3 `CreateBucket` 自动创建。凭据必须具备 `HeadBucket`、`CreateBucket`、`PutObject` 和 `PutBucketPolicy` 权限。
 7. 图片对象使用 ZIP 条目推断的 `Content-Type`；不信任 ZIP 内路径作为对象 key，且拒绝目录条目和未知扩展名图片。
 
 ## 后果
@@ -29,5 +29,6 @@ ADR 0001 规定 MinerU 结果只取 `full.md`，丢弃结果 ZIP 内的图片资
 - 使用 AWS SDK S3 client，兼容 RustFS。
 - `RUSTFS_ENABLED=false` 时，含图片的 PDF 不能成功摄取；无图片结果仍可完成。
 - bucket 检查/创建只在本进程首次上传图片时执行，并发上传共享同一个初始化 Promise。
+- bucket 创建后自动设置匿名 `s3:GetObject` 策略（限定 `documents/*` 前缀），保证改写后的公网 URL 可直接访问；已存在策略不覆盖。
 - URL 统一去尾部斜杠，key 使用 URL 编码逐段拼接。
 - API 测试默认关闭 RustFS，并通过 fake S3/客户端边界覆盖图片上传与引用改写。

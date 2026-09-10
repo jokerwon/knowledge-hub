@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CreateBucketCommand,
+  GetBucketPolicyCommand,
   HeadBucketCommand,
+  PutBucketPolicyCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -75,6 +77,7 @@ export class RustfsService {
     if (!this.client) throw new Error('RustFS 客户端未初始化');
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      await this.ensurePublicReadPolicy();
       return;
     } catch (err) {
       if (
@@ -95,6 +98,41 @@ export class RustfsService {
         throw err;
       }
     }
+    await this.ensurePublicReadPolicy();
+  }
+
+  // 图片 URL 直接供浏览器访问（ADR 0002 决策 3）：bucket 需要匿名 GetObject。
+  // 已有策略时不覆盖（运维可能收紧过）；无策略时写入限定 documents/* 的最小授权。
+  private async ensurePublicReadPolicy(): Promise<void> {
+    if (!this.client) throw new Error('RustFS 客户端未初始化');
+    try {
+      await this.client.send(
+        new GetBucketPolicyCommand({ Bucket: this.bucket }),
+      );
+      return;
+    } catch (err) {
+      // NoSuchBucketPolicy = 可写；其他错误（权限不足等）照常上抛
+      if (
+        !(err instanceof S3ServiceException) ||
+        err.name !== 'NoSuchBucketPolicy'
+      ) {
+        throw err;
+      }
+    }
+    const policy = JSON.stringify({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::${this.bucket}/documents/*`],
+        },
+      ],
+    });
+    await this.client.send(
+      new PutBucketPolicyCommand({ Bucket: this.bucket, Policy: policy }),
+    );
   }
 
   async uploadImages(

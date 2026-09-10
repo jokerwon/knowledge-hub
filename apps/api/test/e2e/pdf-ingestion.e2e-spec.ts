@@ -170,9 +170,12 @@ describe('PDF 摄取（fake MinerU）', () => {
       );
       expect(stored?.bytes.equals(image)).toBe(true);
       expect(stored?.contentType).toBe('image/png');
+      // bucket 无策略时自动写入匿名 GetObject（限定 documents/*），URL 才可公开访问
+      expect(rustfs.policy).toContain(
+        `"Resource":["arn:aws:s3:::knowledge-hub/documents/*"]`,
+      );
     });
   });
-
   describe('上传校验：同步可判定违规一律 400', () => {
     it('伪装 PDF（.pdf 扩展名 + 文本内容）→ 400 且文案点明 %PDF- 文件头', async () => {
       const res = await upload(server, token, {
