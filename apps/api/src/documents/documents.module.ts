@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MineruModule } from '../mineru/mineru.module';
 import type { AppConfig } from '../config';
+import { MineruModule } from '../mineru/mineru.module';
+import { RustfsModule } from '../storage/rustfs.module';
 import { DocumentEntity } from './entities/document.entity';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
@@ -22,6 +23,7 @@ import { INGESTION_CLOCK, SystemClock } from './clock';
       useFactory: (config: ConfigService<AppConfig>) =>
         buildUploadOptions(config.getOrThrow('upload', { infer: true })),
     }),
+    RustfsModule,
     MineruModule,
   ],
   controllers: [DocumentsController],

@@ -3,13 +3,13 @@
 NestJS + TypeORM + PostgreSQL 文档摄取服务。
 
 ```bash
-cp ../../.env.example ../../.env   # DATABASE_URL / TEST_DATABASE_URL / UPLOAD_MAX_BYTES / JWT_SECRET
+cp ../../.env.example ../../.env   # 配置 PostgreSQL / MinerU / RustFS / JWT
 pnpm migration:run && pnpm dev     # http://localhost:8001
 ```
 
-依赖服务使用已就绪的远程 PostgreSQL（`.env` 的 `DATABASE_URL`），不在本地跑 Docker；`deploy/docker-compose.yml` 仅供服务器部署参考。
+依赖服务使用已就绪的远程 PostgreSQL 与 RustFS，不在本地跑 Docker；`deploy/docker-compose.yml` 仅供服务器部署参考。启用 RustFS 后，应用首次上传图片时会自动创建 `RUSTFS_BUCKET`；配置凭据须具备检查、创建 bucket 和上传对象权限，并允许浏览器读取 `RUSTFS_PUBLIC_URL` 下的对象。
 
-端点：`POST /documents`（multipart `file`，.md/.txt ≤2 MiB，同步摄取）、`GET /documents`、`DELETE /documents/:id`。
+端点：`POST /documents`（multipart `file`，支持 .md/.txt/.pdf，统一返回 202）、`GET /documents`、`DELETE /documents/:id`。
 以上端点与 `GET /auth/me`、`POST /auth/change-password` 均需 `Authorization: Bearer <token>`；`POST /auth/login` 公开。
 
 ## 测试（e2e 契约）
@@ -20,9 +20,9 @@ pnpm test   # 仓库根一条命令；等价于在 apps/api 下 pnpm test
 
 vitest + supertest 驱动进程内 Nest 应用，连接 `TEST_DATABASE_URL` 指定的真实 PG 测试库
 （库名必须以 `_test` 结尾）：每轮自动 DROP/CREATE 测试库并重跑全部 migration，
-用例间 truncate + 重新播种测试账号。现有 HTTP 契约（md/txt 上传 200 即 ready、
-列表、删除、未带 token 401、超限/扩展名违规 400）钉住在 `test/e2e/*.e2e-spec.ts`，
-契约变更必须显式更新对应断言。
+用例间 truncate + 重新播种测试账号。现有 HTTP 契约（md/txt/pdf 上传 202、异步状态机、
+MinerU 解析、RustFS 图片上传与引用改写、列表、删除、未带 token 401、超限/扩展名违规 400）
+钉住在 `test/e2e/*.e2e-spec.ts`，契约变更必须显式更新对应断言。
 
 DB 冒烟：`TS_NODE_PROJECT=tsconfig.cli.json node --require ts-node/register scripts/smoke-db.ts`。
 

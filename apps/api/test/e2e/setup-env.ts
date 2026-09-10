@@ -36,3 +36,6 @@ process.env.UPLOAD_PDF_MAX_BYTES = String(DEFAULT_PDF_MAX_UPLOAD_BYTES);
 process.env.PDF_MAX_PAGES = String(DEFAULT_PDF_MAX_PAGES);
 // 轮询间隔调小：非注入时钟的用例（收敛/并发）用真实时间驱动但不等 5s 一拍。
 process.env.MINERU_POLL_INTERVAL_MS = '10';
+
+// 默认关闭对象存储，已有 PDF 无图片用例不依赖外部 RustFS。
+process.env.RUSTFS_ENABLED = 'false';

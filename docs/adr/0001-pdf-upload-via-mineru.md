@@ -32,7 +32,7 @@ PDF 是二进制格式，直读不可行，必须引入解析能力。设计经�
    - 页数上限 100 页（`PDF_MAX_PAGES`），超出置 failed。
 8. **类型校验：扩展名 + 魔数嗅探**。白名单加 `.pdf`；PDF 校验 `%PDF-` 文件头，md/txt 校验 UTF-8 可解码。拦截改后缀伪装/传错文件。
 9. **标题仍取文件名**（剥离 `.pdf` 后缀）。PDF 元数据 title 经常为空或为垃圾值（如「Microsoft Word - xxx.doc」），不可信。
-10. **MinerU 结果只取 markdown 文本**，丢弃提取的图片资源。content 列保持纯文本契约。
+10. **MinerU 结果保留 markdown 文本；图片资源处理由 ADR 0002 修订为上传 RustFS 并改写引用。** `content` 列仍保存 markdown 纯文本，不保存图片二进制。
 
 ## 后果
 

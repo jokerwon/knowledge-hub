@@ -18,6 +18,7 @@ import {
   type FakeMineru,
   type FakeMineruTask,
 } from './fake-mineru';
+import { startFakeRustfs, type FakeRustfs } from './fake-rustfs';
 import {
   documentRow,
   getAccessToken,
@@ -35,25 +36,35 @@ describe('PDF 摄取（fake MinerU）', () => {
   let server: Server;
   let token: string;
   let mineru: FakeMineru;
+  let rustfs: FakeRustfs;
 
   beforeAll(async () => {
     // 先清库再起应用：避免上一 spec 残留的 processing 行在启动期产生后台噪声
     await resetData();
     mineru = await startFakeMineru();
-    // 必须先于 startApp：配置工厂（ConfigModule load）在应用初始化期读取 API base
+    rustfs = await startFakeRustfs();
+    // 必须先于 startApp：配置工厂在应用初始化期读取外部服务端点。
     process.env.MINERU_API_BASE = mineru.url;
+    process.env.RUSTFS_ENABLED = 'true';
+    process.env.RUSTFS_ENDPOINT = rustfs.url;
+    process.env.RUSTFS_PUBLIC_URL = rustfs.url;
+    process.env.RUSTFS_ACCESS_KEY = 'e2e-access-key';
+    process.env.RUSTFS_SECRET_KEY = 'e2e-secret-key';
+    process.env.RUSTFS_BUCKET = 'knowledge-hub';
     server = await startApp();
     token = await getAccessToken();
   });
   afterAll(async () => {
     await stopApp();
     await mineru.close();
+    await rustfs.close();
   });
   beforeEach(async () => {
     await resetData();
     token = await getAccessToken();
     // fake 任务表跨用例累积：清空保证 latestTask 取到本用例的任务
     mineru.tasks.clear();
+    rustfs.objects.clear();
   });
 
   async function listDocs(): Promise<DocumentDto[]> {
@@ -89,6 +100,7 @@ describe('PDF 摄取（fake MinerU）', () => {
 
       // 提交完整性：fake 收到原始字节，data_id 即文档 id（结果侧对账凭据）
       const task = await latestTask();
+      await waitFor(() => task.uploadedBytes !== null);
       expect(task.fileName).toBe('论文.pdf');
       expect(task.dataId).toBe(doc.id);
       expect(task.uploadedBytes?.equals(MINIMAL_PDF)).toBe(true);
@@ -128,6 +140,36 @@ describe('PDF 摄取（fake MinerU）', () => {
       });
       const row = await documentRow(doc.id);
       expect(row?.content).toBe('stored 布局的正文');
+    });
+
+    it('结果包含图片时上传 RustFS 并将 Markdown 引用改为公网 URL', async () => {
+      const res = await upload(server, token, {
+        name: '图文.pdf',
+        content: MINIMAL_PDF,
+        contentType: 'application/pdf',
+      });
+      expect(res.status).toBe(202);
+      const doc = res.body as DocumentDto;
+      const task = await latestTask();
+      await waitFor(() => task.uploadedBytes !== null);
+      const image = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+      task.assets = [{ name: 'images/figure-1.png', data: image }];
+      task.markdown = '# 图文\n\n![示意图](images/figure-1.png)';
+      task.state = 'done';
+
+      await waitFor(async () => {
+        const row = await documentRow(doc.id);
+        return row?.status === 'ready';
+      });
+      const row = await documentRow(doc.id);
+      expect(row?.content).toBe(
+        `# 图文\n\n![示意图](${rustfs.url}/knowledge-hub/documents/${doc.id}/1-figure-1.png)`,
+      );
+      const stored = rustfs.objects.get(
+        `/knowledge-hub/documents/${doc.id}/1-figure-1.png`,
+      );
+      expect(stored?.bytes.equals(image)).toBe(true);
+      expect(stored?.contentType).toBe('image/png');
     });
   });
 

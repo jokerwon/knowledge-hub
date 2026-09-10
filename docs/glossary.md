@@ -25,3 +25,8 @@
 - **UPLOAD_PDF_MAX_BYTES**：PDF 大小上限，默认 20 MiB。
 - **PDF_MAX_PAGES**：PDF 页数上限，默认 100 页。
 - **解析超时**：自提交 MinerU 起 15 分钟，超时置 `failed`，不自动重试。
+## 图片资源
+
+- **图片资源（Image Asset）**：MinerU 结果 ZIP 中被 `full.md` 引用的图片文件；摄取时上传 RustFS，不写入 `documents.content`。
+- **RustFS**：S3 兼容的图片对象存储。图片对象按 `documents/{docId}/{序号}-{安全文件名}` 存放。
+- **图片引用（Image Reference）**：`full.md` 中指向图片资源的 Markdown 引用；ready 文档中的引用改为 `RUSTFS_PUBLIC_URL/bucket/key` 公网 URL。

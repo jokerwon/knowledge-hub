@@ -7,9 +7,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { MineruSnapshot } from '../mineru/mineru.client';
-import { MineruClient } from '../mineru/mineru.client';
+import { MineruClient, type MineruSnapshot } from '../mineru/mineru.client';
 import type { Repository } from 'typeorm';
+import {
+  isSupportedImageName,
+  normalizeAssetName,
+  RustfsService,
+} from '../storage/rustfs.service';
 import type { AppConfig } from '../config';
 import { INGESTION_CLOCK, type IngestionClock } from './clock';
 import { DocumentEntity } from './entities/document.entity';
@@ -42,6 +46,7 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
     @InjectRepository(DocumentEntity)
     private readonly documentsRepo: Repository<DocumentEntity>,
     private readonly mineru: MineruClient,
+    private readonly rustfs: RustfsService,
     config: ConfigService<AppConfig>,
     @Inject(INGESTION_CLOCK) private readonly clock: IngestionClock,
   ) {
@@ -190,9 +195,9 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
       if (snapshot) {
         if (snapshot.state === 'done' && snapshot.fullZipUrl) {
           try {
-            const markdown = await this.mineru.fetchMarkdown(
-              snapshot.fullZipUrl,
-            );
+            const result = await this.mineru.fetchResult(snapshot.fullZipUrl);
+            const urls = await this.rustfs.uploadImages(docId, result.images);
+            const markdown = rewriteImageReferences(result.markdown, urls);
             if (
               await this.transition(docId, {
                 status: 'ready',
@@ -204,14 +209,11 @@ export class IngestionService implements OnModuleInit, OnApplicationShutdown {
             return;
           } catch (err) {
             if (++downloadErrors >= MAX_CONSECUTIVE_POLL_ERRORS) {
-              await this.fail(
-                docId,
-                `MinerU 服务故障：结果包下载连续失败（${messageOf(err)}）`,
-              );
+              await this.fail(docId, `PDF 资源存储连续失败：${messageOf(err)}`);
               return;
             }
             this.logger.warn(
-              `结果包下载失败，稍后重试 doc=${docId} err=${messageOf(err)}`,
+              `PDF 资源处理失败，稍后重试 doc=${docId} err=${messageOf(err)}`,
             );
           }
         } else if (snapshot.state === 'failed') {
@@ -301,4 +303,28 @@ function classifyMineruFailure(errMsg: string, maxPages: number): string {
     return `页数超过上限：PDF 最多 ${maxPages} 页，请拆分后重新上传`;
   }
   return `解析失败：${errMsg || 'MinerU 未返回原因'}`;
+}
+
+function rewriteImageReferences(
+  markdown: string,
+  urls: Map<string, string>,
+): string {
+  return markdown.replace(
+    /(!\[[^\]]*\]\()([^\s)]+)(\s+[^)]*)?(\))/g,
+    (
+      whole,
+      prefix: string,
+      reference: string,
+      title: string | undefined,
+      suffix: string,
+    ) => {
+      const normalized = normalizeAssetName(reference.replace(/^<|>$/g, ''));
+      if (!isSupportedImageName(normalized)) return whole;
+      const url = urls.get(normalized);
+      if (!url) {
+        throw new Error(`MinerU full.md 引用缺失图片资源：${reference}`);
+      }
+      return `${prefix}${url}${title ?? ''}${suffix}`;
+    },
+  );
 }

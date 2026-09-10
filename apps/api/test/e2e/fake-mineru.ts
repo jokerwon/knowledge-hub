@@ -22,6 +22,8 @@ export interface FakeMineruTask {
   markdown: string;
   // 结果包物理布局：false = stored（method 0），true = deflate（method 8）
   zipDeflated: boolean;
+  // 结果包内除 full.md 外的资源条目。
+  assets: Array<{ name: string; data: Buffer }>;
 }
 
 export interface FakeMineru {
@@ -56,6 +58,7 @@ export async function startFakeMineru(): Promise<FakeMineru> {
         totalPages: null,
         markdown: '',
         zipDeflated: true,
+        assets: [],
       };
       fake.tasks.set(init.batchId, task);
       return task;
@@ -116,6 +119,7 @@ async function handle(
       totalPages: null,
       markdown: '',
       zipDeflated: true,
+      assets: [],
     };
     fake.tasks.set(batchId, task);
     respondJson(res, 200, {
@@ -191,7 +195,15 @@ async function handle(
       return;
     }
     res.statusCode = 200;
-    res.end(buildMineruResultZip(task.markdown, { deflate: task.zipDeflated }));
+    res.end(
+      buildZip(
+        [
+          { name: 'full.md', data: Buffer.from(task.markdown, 'utf8') },
+          ...task.assets,
+        ],
+        { deflate: task.zipDeflated },
+      ),
+    );
     return;
   }
 

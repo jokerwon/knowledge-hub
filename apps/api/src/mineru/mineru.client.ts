@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config';
-import { extractZipEntry } from './zip';
+import { extractZipEntries } from './zip';
 
 // MinerU 官方云 API 客户端（ADR 0001 决策 1）：本地文件走批次上传通道——
 // 申请上传 URL → PUT 原始字节（系统自动提交解析任务）→ 按 batch_id 轮询 →
@@ -114,10 +114,12 @@ export class MineruClient {
     };
   }
 
-  // 下载结果 zip 并取出 full.md（Markdown 正文）。提取的图片资源按 ADR 决策 10 丢弃。
-  // 结果包大小双重设防（content-length 预检 + 读后实测）：异常大的响应尽快失败，
-  // 不让外部服务把进程内存拖垮。
-  async fetchMarkdown(fullZipUrl: string): Promise<string> {
+  // 下载结果 zip，返回 full.md 和其中的图片资源；图片由摄取编排层上传 RustFS。
+  // 结果包大小双重设防（content-length 预检 + 读后实测）。
+  async fetchResult(fullZipUrl: string): Promise<{
+    markdown: string;
+    images: Array<{ name: string; data: Buffer }>;
+  }> {
     const res = await fetch(fullZipUrl, {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
@@ -132,7 +134,15 @@ export class MineruClient {
     if (zip.length > MAX_RESULT_ZIP_BYTES) {
       throw new Error(`MinerU 结果包过大：${zip.length} 字节`);
     }
-    return extractZipEntry(zip, FULL_MD_ENTRY).toString('utf8');
+    const entries = extractZipEntries(zip);
+    const markdown = entries.find((entry) => entry.name === FULL_MD_ENTRY);
+    if (!markdown) throw new Error(`zip 结果包中不存在条目 ${FULL_MD_ENTRY}`);
+    return {
+      markdown: markdown.data.toString('utf8'),
+      images: entries.filter((entry) =>
+        /\.(?:apng|avif|gif|jpe?g|png|svg|webp)$/i.test(entry.name),
+      ),
+    };
   }
 
   private async postJson<T>(path: string, body: unknown): Promise<T> {

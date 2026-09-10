@@ -53,8 +53,16 @@ export interface AppConfig {
     pollIntervalMs: number;
     pdfMaxPages: number;
   };
+  rustfs: {
+    enabled: boolean;
+    endpoint: string;
+    publicUrl: string;
+    accessKey: string | undefined;
+    secretKey: string | undefined;
+    bucket: string;
+    region: string;
+  };
   upload: {
-    // md/txt 档；PDF 档（multer fileSize 按此设置）。
     textMaxBytes: number;
     pdfMaxBytes: number;
   };
@@ -87,8 +95,20 @@ export function loadAppConfig(): AppConfig {
       pdfMaxPages: intEnv('PDF_MAX_PAGES', DEFAULT_PDF_MAX_PAGES),
     },
     upload: {
+      // md/txt 档；PDF 档（multer fileSize 按此设置）。
       textMaxBytes: intEnv('UPLOAD_MAX_BYTES', DEFAULT_MAX_UPLOAD_BYTES),
       pdfMaxBytes: intEnv('UPLOAD_PDF_MAX_BYTES', DEFAULT_PDF_MAX_UPLOAD_BYTES),
+    },
+    rustfs: {
+      enabled: boolEnv('RUSTFS_ENABLED'),
+      endpoint: process.env.RUSTFS_ENDPOINT ?? 'http://127.0.0.1:9000',
+      publicUrl: (
+        process.env.RUSTFS_PUBLIC_URL ?? 'http://127.0.0.1:9000'
+      ).replace(/\/+$/, ''),
+      accessKey: process.env.RUSTFS_ACCESS_KEY,
+      secretKey: process.env.RUSTFS_SECRET_KEY,
+      bucket: process.env.RUSTFS_BUCKET ?? 'knowledge-hub',
+      region: process.env.RUSTFS_REGION ?? 'us-east-1',
     },
   };
 }
