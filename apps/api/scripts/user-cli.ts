@@ -57,6 +57,7 @@ async function main(): Promise<void> {
   const dataSource = new DataSource(
     buildDataSourceOptions(loadAppConfig().database),
   );
+  await dataSource.initialize();
   const repo = dataSource.getRepository(UserEntity);
 
   try {
