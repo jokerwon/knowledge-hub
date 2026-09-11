@@ -124,11 +124,11 @@ const STATUS_LABEL: Record<FileUploadStatus, string> = {
   error: "Failed",
 };
 
-// 成功态走 --success token（营销画布唯一语义色），禁用硬编码 emerald。
+// 默认主题无 --success token：成功态复用 primary 强调色，失败态 destructive。
 const STATUS_TONE: Record<FileUploadStatus, string> = {
   queued: "text-muted-foreground",
   uploading: "text-foreground",
-  success: "text-success",
+  success: "text-primary",
   error: "text-destructive",
 };
 
@@ -454,7 +454,7 @@ function FileUploadRow({
               <motion.div
                 className={cn(
                   "h-full rounded-full",
-                  status === "success" ? "bg-success" : "bg-foreground",
+                  status === "success" ? "bg-primary" : "bg-foreground",
                 )}
                 style={{
                   transformOrigin: "left",

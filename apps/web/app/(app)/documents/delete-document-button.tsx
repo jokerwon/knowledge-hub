@@ -47,7 +47,7 @@ export function DeleteDocumentButton({ id, title }: { id: string; title: string 
             variant="ghost"
             size="icon-sm"
             aria-label={`删除 ${title}`}
-            className="text-ink-subtle hover:text-ink"
+            className="text-muted-foreground hover:text-foreground"
           />
         }
       >
@@ -60,7 +60,7 @@ export function DeleteDocumentButton({ id, title }: { id: string; title: string 
             确定要删除《{title}》吗？它会立即从列表中消失。
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <p className="text-caption text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>取消</AlertDialogCancel>
           <AlertDialogAction

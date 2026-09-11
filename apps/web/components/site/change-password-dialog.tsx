@@ -73,7 +73,7 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
             </p>
           ) : null}
           {state.success ? (
-            <p className="text-sm text-success" role="status">
+            <p className="text-sm text-primary" role="status">
               {state.success}
             </p>
           ) : null}

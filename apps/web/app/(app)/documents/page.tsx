@@ -36,9 +36,9 @@ export default async function DocumentsPage() {
     <>
       <div className="flex items-center gap-4">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-headline">文档</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">文档</h1>
           {documents !== null && (
-            <p className="text-caption text-ink-subtle">
+            <p className="text-sm text-muted-foreground">
               共 {documents.length} 篇
             </p>
           )}
@@ -63,27 +63,27 @@ export default async function DocumentsPage() {
 
 function DocumentList({ documents }: { documents: DocumentDto[] }) {
   return (
-    <ul className="panel-highlight overflow-hidden rounded-lg border border-hairline bg-surface-1">
+    <ul className="overflow-hidden rounded-lg border bg-card">
       {documents.map((doc) => (
         <li
           key={doc.id}
-          className="border-b border-hairline px-4 py-3 last:border-b-0"
+          className="border-b px-4 py-3 last:border-b-0"
         >
           <div className="flex items-center gap-3">
             <FileTextIcon
               aria-hidden="true"
-              className="size-4 shrink-0 text-ink-subtle"
+              className="size-4 shrink-0 text-muted-foreground"
             />
             <div className="min-w-0 flex-1">
               <span
-                className="text-body-sm block truncate text-ink"
+                className="text-sm block truncate"
                 title={doc.title}
               >
                 {doc.title}
               </span>
               {doc.status === "failed" && doc.failure_reason && (
                 <span
-                  className="text-caption block truncate text-destructive"
+                  className="text-xs block truncate text-destructive"
                   title={doc.failure_reason}
                 >
                   {doc.failure_reason}
@@ -93,7 +93,7 @@ function DocumentList({ documents }: { documents: DocumentDto[] }) {
             <StatusBadge status={doc.status} />
             <time
               dateTime={doc.created_at}
-              className="text-caption shrink-0 text-ink-subtle"
+              className="text-xs shrink-0 text-muted-foreground"
             >
               {dateFormatter.format(new Date(doc.created_at))}
             </time>
@@ -105,12 +105,12 @@ function DocumentList({ documents }: { documents: DocumentDto[] }) {
   );
 }
 
-// status-badge 规格（DESIGN.md）：surface-2 底 + ink-muted 字 + pill；
+// 状态徽标：muted 底 + muted-foreground 字 + pill；
 // 失败态是唯一语义色（destructive），处理中带转圈提示进行中。
 function StatusBadge({ status }: { status: DocumentDto["status"] }) {
   if (status === "processing") {
     return (
-      <span className="text-caption flex shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-ink-muted">
+      <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         <Loader2Icon aria-hidden="true" className="size-3 animate-spin" />
         处理中
       </span>
@@ -118,13 +118,13 @@ function StatusBadge({ status }: { status: DocumentDto["status"] }) {
   }
   if (status === "failed") {
     return (
-      <span className="text-caption shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
+      <span className="text-xs shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
         失败
       </span>
     );
   }
   return (
-    <span className="text-caption shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-ink-muted">
+    <span className="text-xs shrink-0 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
       就绪
     </span>
   );
@@ -132,7 +132,7 @@ function StatusBadge({ status }: { status: DocumentDto["status"] }) {
 
 function DocumentsEmpty() {
   return (
-    <Empty className="panel-highlight rounded-lg border border-hairline border-solid bg-surface-1 py-12">
+    <Empty className="rounded-lg border border-solid bg-card py-12">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileTextIcon />
@@ -151,9 +151,9 @@ function DocumentsEmpty() {
 
 function ListErrorPanel() {
   return (
-    <div className="panel-highlight flex flex-col items-center gap-3 rounded-lg border border-hairline bg-surface-1 px-6 py-12 text-center">
-      <p className="text-body-sm text-ink">无法加载文档列表</p>
-      <p className="text-caption text-ink-subtle">
+    <div className="flex flex-col items-center gap-3 rounded-lg border bg-card px-6 py-12 text-center">
+      <p className="text-sm">无法加载文档列表</p>
+      <p className="text-sm text-muted-foreground">
         文档服务（api）无响应，请确认它在运行后重试。
       </p>
       <RefreshButton />

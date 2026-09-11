@@ -10,34 +10,27 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ---
 
-# 设计规范：DESIGN.md 是唯一事实源
+# UI 规范：shadcn 默认主题
 
-任何 UI 工作（新建组件、改样式、加页面）之前，先读 [DESIGN.md](./DESIGN.md) 的相关章节。本节是执行摘要，冲突时以 DESIGN.md 为准。
+主题为 shadcn 默认（base-nova / neutral，preset `b2fA`）：明色 `:root` 是默认外观，暗色经 html `.dark` class（next-themes class 策略，默认跟随系统）。`app/globals.css` 是唯一主题事实源，只维护 shadcn 语义 token，不引入自定义 token / 工具类。
 
-## 取色取字：只经 token 层（app/globals.css）
+## 取色取字：只经语义 token（app/globals.css）
 
-- 颜色一律走 CSS 变量与 Tailwind 语义类，组件内禁止硬编码 hex。
-- Linear 调色板是一等工具类：`bg-canvas`、`bg-surface-1`…`bg-surface-4`、`border-hairline{,-strong,-tertiary}`、`text-ink{,-muted,-subtle,-tertiary}`、`bg-primary` / `text-on-primary`、`bg-inverse-canvas`、`bg-success`。
-- shadcn 语义类（`bg-background` / `bg-card` / `bg-muted` / `bg-accent` / `ring-ring` …）已在 globals.css 映射到 Linear token，shadcn 组件直接用语义类。
-- 排版用现成工具类（自带响应式降级与 tracking）：`text-display-xl|display-lg|display-md|headline|card-title|subhead|body-lg|body|body-sm|caption|eyebrow`；等宽只走 `font-mono`。
-- 圆角：按钮/输入 `rounded-md`（8px）、卡片 `rounded-lg`（12px）、截图面板 `rounded-xl`（16px）；CTA 永不 pill。
-- 提升面板质感用 `panel-highlight`（顶部 1px 内描边）——surface 阶梯之外唯一允许的深度。
+- 颜色一律用 shadcn 语义类：`bg-background` / `bg-card` / `bg-muted` / `bg-accent` / `text-muted-foreground` / `border-border` / `ring-ring` 等，组件内禁止硬编码 hex。
+- 默认主题没有 success token：成功/强调态复用 `primary`，失败态用 `destructive`。
+- 排版直接用 Tailwind 内置工具类（页题用 `text-2xl font-semibold tracking-tight` 等），不引入自定义排版工具类。
+- 圆角走默认 radius 派生（`--radius: 0.625rem` → sm/md/lg/xl…），不要用固定 px 覆盖。
 
-## 硬约束（违反即返工）
+## 主题机制
 
-1. 熏衣草紫 `--primary`（#5e6ad2）是唯一彩色强调，只用于品牌标、主 CTA、focus ring、链接强调。不做大面积底色，不引入第二个彩色（营销画布唯一语义色是 `--success`）。
-2. 层级靠 surface 阶梯（canvas → surface-1…4）+ 1px hairline 边框：无阴影、无渐变、无聚光卡片。
-3. 暗色 #010102 是默认锚定画布；亮色是显式可选项，机制为 html `.light` class + localStorage 持久化（见 app/layout.tsx 的 themeInitScript 与 components/site/theme-toggle.tsx）。禁止引入 next-themes 等主题库。
-4. 新颜色必须同时落三处：DESIGN.md front matter、globals.css `:root`、globals.css `.light`（亮色是机械镜像，映射表见 DESIGN.md「Light Theme」节）。缺一不可。
-5. 字体用自托管 Geist Sans / Geist Mono（DESIGN.md 认可的 Linear 替代），经 `geist` 包注入，不加其它字体依赖。
-6. 展示字重上限 600（body 400），禁止 700+；display 的负 tracking 已内置于 `text-display-*` 工具类，勿手写。
+- next-themes 统一管理：`components/theme-provider.tsx`（class 策略，默认跟随系统），切换入口是顶栏 `ThemeToggle`。不要自写 localStorage 注入脚本，不要引入第二套主题机制，也不注册全局快捷键。
+- 字体走 `next/font/google` 的 Geist / Geist Mono（暴露 `--font-sans` / `--font-mono`），不加其它字体依赖。
 
 ## shadcn 组件
 
-- `components/ui/*` 是 vendored 底座，主题化只经 token 与工具类。新增变体须对应 DESIGN.md `components:` 条目，并在代码注释里标注对应 token——参考 `components/ui/button.tsx`。
-- 需要 DESIGN.md 未定义的组件时，先在 DESIGN.md 补 `components:` 条目，再写代码。
+- `components/ui/*` 是 vendored 底座：新增组件用 `pnpm dlx shadcn@latest add <name>` 取默认实现；定制优先用组件自带 variant，不重写其颜色体系。
+- 升级组件先用 `add <name> --diff` 比对本地改动再合并，不要手抄 GitHub 源码。
 
 ## 流程
 
-- 修改了 DESIGN.md 本身：跑 `npx @google/design.md lint DESIGN.md`。
 - UI 改动完成：`pnpm --filter web lint && pnpm --filter web build` 必须通过。

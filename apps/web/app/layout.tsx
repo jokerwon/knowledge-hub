@@ -1,13 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { Geist, Geist_Mono } from "next/font/google";
+
+import { ThemeProvider } from "@/components/theme-provider";
+import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
-// Geist Sans / Geist Mono (self-hosted) — the DESIGN.md-endorsed substitutes
-// for the proprietary Linear Display / Text / Mono families.
-// Both expose the CSS variables --font-geist-sans / --font-geist-mono.
+// shadcn 默认字体接线：next/font/google Geist / Geist Mono，
+// 分别暴露 --font-sans / --font-mono 变量。
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "Knowledge Hub — Your team's knowledge, in order",
@@ -17,31 +19,23 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#010102" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-// Re-applies a stored light preference before first paint (no flash).
-// Dark is the default; the ThemeToggle persists "light" | "dark".
-const themeInitScript = `try{if(localStorage.getItem("theme")==="light"){document.documentElement.classList.remove("dark");document.documentElement.classList.add("light")}}catch(e){}`;
-
 // 根布局只保留 html 骨架；应用壳（侧边栏/顶栏/鉴权门）在 (app) 组布局，
 // 登录页 (app/login) 因此天然不带侧边栏。
+// 明暗主题由 next-themes 管理（class 策略，默认跟随系统），首帧无闪烁。
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${GeistSans.variable} ${GeistMono.variable} dark h-full antialiased`}
+      className={cn("h-full antialiased", fontMono.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col">
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: themeInitScript }}
-        />
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

@@ -227,9 +227,7 @@ function DropdownMenuSeparator({
   return (
     <MenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      // 弹层是 surface-3：DESIGN.md 规定嵌套表面用 hairline-tertiary。
-      // bg-border(hairline) 对 surface-3 对比度约 1.15:1，1px 线不可见。
-      className={cn("-mx-1 my-1 h-px bg-hairline-tertiary", className)}
+      className={cn("-mx-1 my-1 h-px bg-border", className)}
       {...props}
     />
   )

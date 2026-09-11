@@ -17,7 +17,7 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <form
       action={formAction}
-      className="flex w-full max-w-sm flex-col gap-6 rounded-lg border border-hairline bg-surface-1 p-8"
+      className="flex w-full max-w-sm flex-col gap-6 rounded-lg border bg-card p-8"
     >
       <input type="hidden" name="next" value={next ?? ""} />
 
@@ -26,8 +26,8 @@ export function LoginForm({ next }: { next?: string }) {
           <GalleryVerticalEndIcon className="size-4" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-ink">Knowledge Hub</h1>
-          <p className="truncate text-xs text-ink-muted">
+          <h1 className="text-lg font-semibold">Knowledge Hub</h1>
+          <p className="truncate text-xs text-muted-foreground">
             受邀账号由管理员创建，不开放注册
           </p>
         </div>

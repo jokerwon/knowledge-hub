@@ -1,33 +1,24 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
 /**
- * Toggles the dark (default) / light canvas. The choice persists in
- * localStorage and is re-applied pre-paint by the inline script in the
- * root layout. Icons are driven purely by the <html> theme class, so they
- * can never mismatch during hydration.
+ * 明暗切换入口：next-themes（class 策略，默认跟随系统）。
+ * 图标显隐纯由 <html> 的 .dark class 驱动，CSS 层面切换，
+ * 水合期间不会出现图标与主题不一致。
  */
 export function ThemeToggle() {
-  function toggle() {
-    const root = document.documentElement;
-    const isLight = root.classList.toggle("light");
-    root.classList.toggle("dark", !isLight);
-    try {
-      localStorage.setItem("theme", isLight ? "light" : "dark");
-    } catch {
-      // storage unavailable (private mode) — session-only theme
-    }
-  }
+  const { resolvedTheme, setTheme } = useTheme();
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggle}
-      aria-label="Toggle color theme"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      aria-label="切换颜色主题"
     >
       <Sun aria-hidden="true" className="hidden size-4 dark:block" />
       <Moon aria-hidden="true" className="size-4 dark:hidden" />

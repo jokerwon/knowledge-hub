@@ -56,8 +56,8 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="flex items-baseline gap-3">
-        <h1 className="text-headline">仪表盘</h1>
-        <p className="text-caption text-ink-subtle">知识库概览与动态</p>
+        <h1 className="text-2xl font-semibold tracking-tight">仪表盘</h1>
+        <p className="text-sm text-muted-foreground">知识库概览与动态</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -71,7 +71,7 @@ export default async function DashboardPage() {
             ) : (
               <Link
                 href="/documents"
-                className="text-primary hover:text-primary-hover"
+                className="text-primary underline-offset-4 hover:underline"
               >
                 查看全部文档 →
               </Link>
@@ -118,10 +118,10 @@ export default async function DashboardPage() {
                 key={day.label}
                 title={`${day.label} · ${day.count} 篇`}
                 className={cn(
-                  "flex-1 rounded-t-xs transition-colors",
+                  "flex-1 rounded-t-sm transition-colors",
                   day.count === 0
-                    ? "bg-hairline-strong"
-                    : "bg-ink-subtle hover:bg-ink-muted",
+                    ? "bg-muted"
+                    : "bg-muted-foreground/60 hover:bg-muted-foreground",
                 )}
                 style={{
                   height: `${Math.max((day.count / trendMax) * 100, 4)}%`,
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
               />
             ))}
           </div>
-          <div className="flex justify-between text-caption text-ink-tertiary">
+          <div className="flex justify-between text-xs text-muted-foreground">
             <span>{trendDays[0]?.label}</span>
             <span>{trendDays[trendDays.length - 1]?.label}</span>
           </div>
@@ -140,16 +140,16 @@ export default async function DashboardPage() {
             {ACTIVITY_ITEMS.map((item) => (
               <li
                 key={item.text}
-                className="flex items-center gap-3 border-b border-hairline py-3 first:pt-0 last:border-b-0 last:pb-0"
+                className="flex items-center gap-3 border-b py-3 first:pt-0 last:border-b-0 last:pb-0"
               >
                 <item.icon
                   aria-hidden="true"
-                  className="size-4 shrink-0 text-ink-subtle"
+                  className="size-4 shrink-0 text-muted-foreground"
                 />
-                <span className="text-body-sm min-w-0 flex-1 truncate text-ink-muted">
+                <span className="text-sm min-w-0 flex-1 truncate">
                   {item.text}
                 </span>
-                <time className="text-caption shrink-0 text-ink-subtle">
+                <time className="text-xs shrink-0 text-muted-foreground">
                   {item.time}
                 </time>
               </li>
@@ -161,12 +161,12 @@ export default async function DashboardPage() {
   );
 }
 
-// status-badge 规格（DESIGN.md）：surface-2 底 + ink-muted 字 + pill
+// 状态徽标：muted 底 + muted-foreground 字 + pill
 function MockBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "rounded-full bg-surface-2 px-2 py-0.5 text-caption text-ink-muted",
+        "rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground",
         className,
       )}
     >
@@ -175,7 +175,7 @@ function MockBadge({ className }: { className?: string }) {
   );
 }
 
-// feature-card 规格（DESIGN.md）：surface-1 底 + hairline 边 + rounded-lg + 24px 内边距
+// 指标卡：card 底 + 默认边框 + rounded-lg + 24px 内边距
 function StatCard({
   icon: Icon,
   label,
@@ -190,15 +190,15 @@ function StatCard({
   mock?: boolean;
 }) {
   return (
-    <div className="panel-highlight flex flex-col gap-4 rounded-lg border border-hairline bg-surface-1 p-6">
+    <div className="flex flex-col gap-4 rounded-lg border bg-card p-6">
       <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="size-4 shrink-0 text-ink-subtle" />
-        <span className="text-caption text-ink-subtle">{label}</span>
+        <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{label}</span>
         {mock ? <MockBadge className="ml-auto" /> : null}
       </div>
-      <p className="text-display-md text-ink">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight">{value}</p>
       {footer ? (
-        <div className="text-caption text-ink-subtle">{footer}</div>
+        <div className="text-sm text-muted-foreground">{footer}</div>
       ) : null}
     </div>
   );
@@ -220,15 +220,15 @@ function Panel({
   return (
     <section
       className={cn(
-        "panel-highlight flex flex-col gap-6 rounded-lg border border-hairline bg-surface-1 p-6",
+        "flex flex-col gap-6 rounded-lg border bg-card p-6",
         className,
       )}
     >
       <header className="flex items-center gap-3">
-        <h2 className="text-card-title text-ink">{title}</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
         {mock ? <MockBadge /> : null}
         {aside ? (
-          <span className="ml-auto text-caption text-ink-subtle">{aside}</span>
+          <span className="ml-auto text-sm text-muted-foreground">{aside}</span>
         ) : null}
       </header>
       {children}
